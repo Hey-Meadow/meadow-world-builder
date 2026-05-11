@@ -1,4 +1,4 @@
-# Meadow - world builder: Single-Image 3D Gaussian Splatting on Apple Silicon
+# Meadow - World Builder: Single-Image 3D Gaussian Splatting on Apple Silicon
 
 An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image → 3D Gaussian Splatting reconstruction, runnable end-to-end on a single Apple Silicon Mac. No CUDA, no PyTorch at inference, no cloud GPU.
 
@@ -86,9 +86,9 @@ Mean **~100 s / object**. SLAT diffusion (25 CFG steps × 2 forward passes) acco
 
 ## Quality vs Reference Implementation
 
-We compared Meadow - world builder outputs against PLYs downloaded directly from the [official Meta SAM 3D Objects web demo](https://aidemos.meta.com/segment3d) on identical inputs.
+We compared Meadow - World Builder outputs against PLYs downloaded directly from the [official Meta SAM 3D Objects web demo](https://aidemos.meta.com/segment3d) on identical inputs.
 
-| Metric | chair (Meadow - world builder vs ref) | table (Meadow - world builder vs ref) | plush (Meadow - world builder vs ref) |
+| Metric | chair (Meadow - World Builder vs ref) | table (Meadow - World Builder vs ref) | plush (Meadow - World Builder vs ref) |
 |---|---|---|---|
 | Gaussian count | 63 624 / 68 076 (−7 %) | 64 000 / 64 380 (−0.6 %) | 64 000 / 51 340 (+25 %) |
 | Bounding box (x,y,z) | match within 12 % | match within 4 % | wider/looser cloud |
@@ -261,11 +261,11 @@ End-to-end smoke test passing on M1 Max with mean **~100 s / object**.
 
 ## Relationship to SAM 3D Objects
 
-**Meadow - world builder is an independent third-party port. It is not affiliated with, endorsed by, or maintained by Meta.**
+**Meadow - World Builder is an independent third-party port. It is not affiliated with, endorsed by, or maintained by Meta.**
 
-- The **architecture** (sparse-structure DiT, SLAT DiT, Gaussian decoder, MoGe backbone) is described in Meta's [SAM 3D Objects](https://ai.meta.com/research/publications/sam-3d-objects/) paper and other prior work (TRELLIS, MoGe). Meadow - world builder is a from-scratch MLX re-implementation of that architecture.
+- The **architecture** (sparse-structure DiT, SLAT DiT, Gaussian decoder, MoGe backbone) is described in Meta's [SAM 3D Objects](https://ai.meta.com/research/publications/sam-3d-objects/) paper and other prior work (TRELLIS, MoGe). Meadow - World Builder is a from-scratch MLX re-implementation of that architecture.
 - The **model weights** are Meta's. This repository contains *no* model weights — users must download the official Meta release themselves and run the provided conversion script. Redistribution of Meta's weights is governed by Meta's licence terms; please consult the upstream release before redistributing converted weights.
-- The **MLX code, Metal kernels, port scripts, benchmarks, and documentation** in this repository are original work by the Meadow - world builder authors and are released under Apache 2.0.
+- The **MLX code, Metal kernels, port scripts, benchmarks, and documentation** in this repository are original work by the Meadow - World Builder authors and are released under Apache 2.0.
 
 If you publish results obtained with this port, please cite both Meta's original work and this port (see [Citation](#citation)).
 
@@ -281,7 +281,7 @@ Built on top of:
 
 ## Citation
 
-If you use this port in your work, please cite both the original Meta paper and Meadow - world builder:
+If you use this port in your work, please cite both the original Meta paper and Meadow - World Builder:
 
 ```bibtex
 @article{meta_sam3d_objects_2025,
@@ -292,7 +292,7 @@ If you use this port in your work, please cite both the original Meta paper and 
 }
 
 @misc{huang_meadow_2026,
-  title  = {Meadow - world builder: Single-Image 3D Gaussian Splatting on Apple Silicon},
+  title  = {Meadow - World Builder: Single-Image 3D Gaussian Splatting on Apple Silicon},
   author = {Sheng-Kai Huang},
   year   = {2026},
   note   = {https://github.com/Hey-Meadow/meadow-world-builder}

@@ -1,17 +1,17 @@
-# Fast-SAM3D Port Spec (Meadow - world builder Adaptation)
+# Fast-SAM3D Port Spec (Meadow - World Builder Adaptation)
 
 Source paper: **Fast-SAM3D: 3Dfy Anything in Images but Faster**, arXiv [2602.05293](https://arxiv.org/abs/2602.05293).
 
 Training-free. Author-reported 2.67× end-to-end on Toys4K (single-object).
-**Mechanism ③ targets the mesh decoder, which Meadow - world builder does NOT use** — we
+**Mechanism ③ targets the mesh decoder, which Meadow - World Builder does NOT use** — we
 ship only the Gaussian-splat path. So our realistic gain is from ① and ②
 only.
 
 ---
 
-## Applicability Matrix (Meadow - world builder pipeline)
+## Applicability Matrix (Meadow - World Builder pipeline)
 
-| Mechanism | Paper target | Meadow - world builder stage | Applies? | Expected gain (M1 Max) |
+| Mechanism | Paper target | Meadow - World Builder stage | Applies? | Expected gain (M1 Max) |
 |---|---|---|---|---|
 | ① Modality-aware step caching | SS Generator (25-step CFG) | SS DiT (already 4-step shortcut) | **partial** — see §1 below | ~5–10% on SS (~0.5–1s) |
 | ② Joint spatiotemporal token carving + curvature caching | SLAT Generator (25-step CFG) | SLAT DiT (still 25-step CFG-5, ~80 s) | **YES — primary target** | ~34% of SLAT (~25–27 s) |
@@ -59,7 +59,7 @@ full backbone evaluation.
 | $\beta$ (momentum factor) | **0.5** | optimum; $\beta=1.0$ slightly worse |
 | Warmup | **2 steps** | required for stability |
 
-### Meadow - world builder-specific risk
+### Meadow - World Builder-specific risk
 Our SS already runs **4-step shortcut** distillation (`--use-shortcut`).
 The paper assumes a 25-step baseline; with only 4 steps there's almost
 no headroom to skip. Two paths:
@@ -112,7 +112,7 @@ class ModalityAwareCache:
 
 ## ② Joint Spatiotemporal Token Carving + Curvature-Aware Caching (SLAT)
 
-**This is the highest-leverage mechanism for Meadow - world builder** — SLAT is 80 %
+**This is the highest-leverage mechanism for Meadow - World Builder** — SLAT is 80 %
 of our wall time and runs the full 25-step CFG-5 schedule (no shortcut
 yet).
 
@@ -165,7 +165,7 @@ reuse tangent.
 | $\mathcal{E}$ (switching threshold) | **1.5** | error bound triggering anchor refresh |
 | Warmup | **2 steps** | both spatial and temporal disabled |
 
-### Meadow - world builder-specific risk
+### Meadow - World Builder-specific risk
 - SLAT has only **16 000 voxel tokens max**, not 100k+. With $K=10\%$
   that's only 1 600 active tokens per step. Risk of under-fitting
   geometry on complex objects (plush). **Ablate $K \in \{10, 20, 30, 50\}$%.**
@@ -221,7 +221,7 @@ class SpatiotemporalCarving:
 
 ## ③ Spectral-Aware Token Aggregation — DEFER
 
-Targets mesh decoder. Meadow - world builder ships Gaussian-splat path only (no mesh
+Targets mesh decoder. Meadow - World Builder ships Gaussian-splat path only (no mesh
 decoder in `gs_4` decode). Possible future direction: adapt HFER to
 choose `gs_4 / gs_8 / gs_16` per object based on input complexity, but
 this is research, not a port. **Not in scope for this sprint.**
