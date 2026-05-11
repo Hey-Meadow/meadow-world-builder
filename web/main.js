@@ -942,13 +942,17 @@ async function main() {
     worker.onmessage = (e) => {
         if (e.data.sceneCenter) {
             window.iriState.sceneCenter = e.data.sceneCenter;
-            // Rebuild a fitted default view matrix: camera 2.5x radius back along +Z, looking at scene centre.
+            // Fit camera to scene: this viewer uses +Z translation in the view
+            // matrix (Train scene default has tz=+6.55). Mirror that convention.
             const [cx, cy, cz] = e.data.sceneCenter;
             const r = e.data.sceneRadius || 1.0;
             const dist = 2.6 * r;
-            // Column-major 4x4: identity rotation, translation = -sceneCenter then -d on z.
-            const m = [1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,
-                       -cx, -cy, -cz - dist, 1];
+            const m = [
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                -cx, -cy, dist - cz, 1,
+            ];
             defaultViewMatrix.splice(0, 16, ...m);
             viewMatrix = m.slice();
             return;
