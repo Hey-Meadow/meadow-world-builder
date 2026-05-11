@@ -86,6 +86,24 @@ Mean **~31 s / object**. To opt out of the curvature cache (full 25-step SLAT lo
 
 Full per-stage and ablation breakdown: [`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md) §6.
 
+### How does this compare to a cloud A100?
+
+We ran the original PyTorch pipeline on an **NVIDIA A100 80GB PCIe** (RunPod) to capture reference activations for our MLX port. Three objects were processed end-to-end with full forward-hook instrumentation (every intermediate tensor saved to disk for numerical validation):
+
+| Object | A100 wall, instrumented<sup>†</sup> | A100 clean estimate<sup>‡</sup> | M1 Max v0.0.2 |
+|---|---:|---:|---:|
+| obj 1 |  94 s | ~70 s | — |
+| obj 2 | 105 s | ~80 s | — |
+| obj 3 |  38 s | ~20 s | — |
+| chair |  — | — | **30.1 s** |
+| table |  — | — | **31.5 s** |
+| plush |  — | — | **32.3 s** |
+
+<sub>† Includes ~16 s model load + heavy disk I/O from saving every intermediate tensor (script: `mlx_port/debug/scripts/dump_pt_reference.py`).</sub><br/>
+<sub>‡ Estimated by subtracting model-load and dump-overhead from the instrumented wall time. We have not yet rerun on A100 without instrumentation; the clean number could be lower.</sub>
+
+**Bottom line.** v0.0.2 on M1 Max is in the **same order of magnitude as a cloud A100** for this pipeline, with no cloud cost, no cold start, no data egress, and no GPU contention. This is the v0.0.3 baseline target to beat: a SLAT shortcut distillation (roadmap item) would push end-to-end into single-digit seconds.
+
 ## Output Quality
 
 Per-object statistics from the standard `.ply` output, compared against a published reference on identical inputs:
