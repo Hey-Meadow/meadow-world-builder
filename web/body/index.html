@@ -91,8 +91,8 @@ const orbit = {
     maxPhi: Math.PI * 0.9,
     minRadius: 0.5,
     maxRadius: 8.0,
-    rotateSpeedX: 0.008,         // drag right → +theta (scene rotates right from viewer)
-    rotateSpeedY: -0.008,        // drag up → -phi (camera tilts up)
+    rotateSpeedX: -0.008,        // drag right → scene moves right (camera orbits opposite)
+    rotateSpeedY: -0.008,        // drag up → camera tilts up
     zoomSpeed: 0.0012,
 };
 function applyOrbit() {
