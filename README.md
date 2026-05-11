@@ -250,7 +250,7 @@ The flow-matching sampler is **seed-sensitive** on ambiguous or low-detail input
 
 <table>
   <tr>
-    <td align="center"><img src="assets/gallery/pikmin_y_seed42_fail.gif" width="220"/><br/><sub><code>--seed 42</code> (default) — featureless blob</sub></td>
+    <td align="center"><img src="assets/gallery/pikmin_y_seed42_fail_v2.gif" width="220"/><br/><sub><code>--seed 42</code> (default) — featureless blob</sub></td>
     <td align="center"><img src="assets/gallery/pikmin_y.gif" width="220"/><br/><sub><code>--seed 123</code> — full character recovered</sub></td>
   </tr>
 </table>
