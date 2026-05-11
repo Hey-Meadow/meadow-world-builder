@@ -67,7 +67,6 @@
 
 <script type="module">
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 // --- Three.js scene setup -------------------------------------------------
 const canvas = document.getElementById("canvas");
@@ -78,17 +77,55 @@ renderer.setClearColor(0x0a0a0e);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 100);
-camera.position.set(0.8, 0.3, 2.4);
-const controls = new OrbitControls(camera, canvas);
-controls.target.set(0, 0, 0);
-// Clamp polar to avoid the over-the-pole gimbal flip when dragging up/down.
-controls.minPolarAngle = Math.PI * 0.1;
-controls.maxPolarAngle = Math.PI * 0.9;
-// OrbitControls' default horizontal drag direction feels reversed for this
-// kind of "look at single object" use; invert by setting rotateSpeed < 0.
-// (Three.js accepts negative — internally it just multiplies the delta.)
-controls.rotateSpeed = -1.0;
-controls.update();
+
+// --- Custom orbit (spherical coords, configurable axis directions) -------
+// OrbitControls couples both rotation axes to a single rotateSpeed, so we
+// can't invert horizontal alone. Roll our own — natural "push the scene"
+// convention: drag right → scene rotates right, drag up → camera tilts up.
+const orbit = {
+    target: new THREE.Vector3(0, 0, 0),
+    radius: 2.6,
+    theta: Math.PI * 0.5,        // azimuth (around Y) — 0.5π = looking from +Z
+    phi: Math.PI * 0.45,         // polar (from +Y down) — 0.5π = horizontal
+    minPhi: Math.PI * 0.1,
+    maxPhi: Math.PI * 0.9,
+    minRadius: 0.5,
+    maxRadius: 8.0,
+    rotateSpeedX: 0.008,         // drag right → +theta (scene rotates right from viewer)
+    rotateSpeedY: -0.008,        // drag up → -phi (camera tilts up)
+    zoomSpeed: 0.0012,
+};
+function applyOrbit() {
+    const sinP = Math.sin(orbit.phi);
+    camera.position.set(
+        orbit.target.x + orbit.radius * sinP * Math.sin(orbit.theta),
+        orbit.target.y + orbit.radius * Math.cos(orbit.phi),
+        orbit.target.z + orbit.radius * sinP * Math.cos(orbit.theta),
+    );
+    camera.lookAt(orbit.target);
+}
+applyOrbit();
+let dragging = false, lastX = 0, lastY = 0;
+canvas.addEventListener("pointerdown", (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointerup",   () => { dragging = false; });
+canvas.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    orbit.theta += dx * orbit.rotateSpeedX;
+    orbit.phi   += dy * orbit.rotateSpeedY;
+    orbit.phi = Math.max(orbit.minPhi, Math.min(orbit.maxPhi, orbit.phi));
+    lastX = e.clientX; lastY = e.clientY;
+    applyOrbit();
+});
+canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    orbit.radius = Math.max(orbit.minRadius, Math.min(orbit.maxRadius, orbit.radius + e.deltaY * orbit.zoomSpeed));
+    applyOrbit();
+}, { passive: false });
 
 // Subtle ambient + directional light (mesh mode benefits)
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
@@ -322,7 +359,6 @@ function tick() {
         }
     }
     updateFrame(currentFrame);
-    controls.update();
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
 }
