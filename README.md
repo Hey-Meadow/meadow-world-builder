@@ -12,11 +12,11 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
   <tr>
     <td align="center"><img src="assets/gallery/chair_clean.gif" width="180"/><br/><sub>chair</sub></td>
     <td align="center"><img src="assets/gallery/table_clean.gif" width="180"/><br/><sub>table</sub></td>
-    <td align="center"><img src="assets/gallery/plush.gif" width="180"/><br/><sub>plush</sub></td>
-    <td align="center"><img src="assets/gallery/objecte.gif" width="180"/><br/><sub>misc-1</sub></td>
+    <td align="center"><img src="assets/gallery/oatchi.gif" width="180"/><br/><sub>Oatchi</sub></td>
+    <td align="center"><img src="assets/gallery/cat.gif" width="180"/><br/><sub>cat</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="assets/gallery/objectf_clean.gif" width="180"/><br/><sub>misc-2</sub></td>
+    <td align="center"><img src="assets/gallery/objectf_clean.gif" width="180"/><br/><sub>misc</sub></td>
     <td align="center"><img src="assets/gallery/toy_1.gif" width="180"/><br/><sub>toy 1</sub></td>
     <td align="center"><img src="assets/gallery/toy_2.gif" width="180"/><br/><sub>toy 2</sub></td>
     <td align="center"><img src="assets/gallery/toy_3.gif" width="180"/><br/><sub>toy 3</sub></td>
@@ -75,7 +75,7 @@ End-to-end wall-clock from `meadow_wb/infer.py` with v0.0.2 defaults (curvature 
 |---|---:|---:|---:|---:|---:|---:|---:|
 | chair | **30.1 s** | 1.74 s |  7.72 s | 13.2 s (76% hits) | 0.79 s | 0.05 s | 63 624 Gaussians |
 | table | **31.5 s** | 1.56 s |  8.72 s | 16.8 s (76% hits) | 0.83 s | 0.07 s | 64 000 Gaussians |
-| plush | **32.3 s** | 1.64 s | 10.25 s | 17.4 s (80% hits) | 1.08 s | 0.05 s | 64 000 Gaussians |
+| Oatchi | **32.3 s** | 1.64 s | 10.25 s | 17.4 s (80% hits) | 1.08 s | 0.05 s | 64 000 Gaussians |
 
 Mean **~31 s / object**. To opt out of the curvature cache (full 25-step SLAT loop), pass `--no-slat-curvature-cache`.
 
@@ -85,7 +85,7 @@ Mean **~31 s / object**. To opt out of the curvature cache (full 25-step SLAT lo
 |---|---:|---:|---:|---:|
 | chair | 1800 s | 78.1 s | 30.1 s | **59.8×** |
 | table | 1800 s | 85.4 s | 31.5 s | **57.1×** |
-| plush | 1800 s | 97.9 s | 32.3 s | **55.7×** |
+| Oatchi | 1800 s | 97.9 s | 32.3 s | **55.7×** |
 
 Full per-stage and ablation breakdown: [`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md) §6.
 
@@ -100,7 +100,7 @@ We ran the original PyTorch pipeline on an **NVIDIA A100 80GB PCIe** (RunPod) to
 | obj 3 |  38 s | ~20 s | — |
 | chair |  — | — | **30.1 s** |
 | table |  — | — | **31.5 s** |
-| plush |  — | — | **32.3 s** |
+| Oatchi |  — | — | **32.3 s** |
 
 <sub>† Includes ~16 s model load + heavy disk I/O from saving every intermediate tensor (script: `mlx_port/debug/scripts/dump_pt_reference.py`).</sub><br/>
 <sub>‡ Estimated by subtracting model-load and dump-overhead from the instrumented wall time. We have not yet rerun on A100 without instrumentation; the clean number could be lower.</sub>
@@ -111,7 +111,7 @@ We ran the original PyTorch pipeline on an **NVIDIA A100 80GB PCIe** (RunPod) to
 
 Per-object statistics from the standard `.ply` output, compared against a published reference on identical inputs:
 
-| Metric | chair | table | plush |
+| Metric | chair | table | Oatchi |
 |---|---|---|---|
 | Gaussian count (ours / ref) | 63 624 / 68 076 (−7 %) | 64 000 / 64 380 (−0.6 %) | 64 000 / 51 340 (+25 %) |
 | Bounding box agreement | within 12 % | within 4 % | wider/looser cloud |
@@ -119,7 +119,7 @@ Per-object statistics from the standard `.ply` output, compared against a publis
 | Quaternion `\|q\|` | 1.0000 | 1.0000 | 1.0000 |
 
 - **Chair, table:** geometry and bounding box visually indistinguishable from the reference; minor colour-cast on chair (slightly darker red).
-- **Plush:** geometry correct; cloud fluffier (lower opacity, ~2× mean scale).
+- **Oatchi:** geometry correct; cloud fluffier (lower opacity, ~2× mean scale).
 
 Full numerics including per-stage timings, optimization ablations, and quality regressions: [`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md).
 
