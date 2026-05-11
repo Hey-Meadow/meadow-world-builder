@@ -55,12 +55,13 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 4. [Installation](#installation)
 5. [Pre-trained Checkpoints](#pre-trained-checkpoints)
 6. [Quickstart](#quickstart)
-7. [Optimization Stack](#optimization-stack)
-8. [Pipeline](#pipeline)
-9. [Status](#status)
-10. [Limitations](#limitations)
-11. [Acknowledgements](#acknowledgements)
-12. [Citation](#citation)
+7. [Troubleshooting: seed sensitivity](#troubleshooting-seed-sensitivity)
+8. [Optimization Stack](#optimization-stack)
+9. [Pipeline](#pipeline)
+10. [Status](#status)
+11. [Limitations](#limitations)
+12. [Acknowledgements](#acknowledgements)
+13. [Citation](#citation)
 
 ---
 
@@ -218,6 +219,30 @@ Render a 360° turntable GIF of any `.ply`:
 ```bash
 bash meadow_wb/scripts/ql_gif_pipeline.sh outputs/my_object.ply preview.gif 36 320
 ```
+
+## Troubleshooting: seed sensitivity
+
+The flow-matching sampler is **seed-sensitive** on ambiguous or low-detail inputs — flat-coloured, thin, or partially-occluded objects sometimes collapse into a featureless blob on the default `--seed 42`. The fix is cheap: retry with a different `--seed`.
+
+<table>
+  <tr>
+    <td align="center"><img src="assets/gallery/pikmin_y_seed42_fail.gif" width="220"/><br/><sub><code>--seed 42</code> (default) — featureless blob</sub></td>
+    <td align="center"><img src="assets/gallery/pikmin_y.gif" width="220"/><br/><sub><code>--seed 123</code> — full character recovered</sub></td>
+  </tr>
+</table>
+
+Same input image, same flags, only `--seed` changed. Yellow pikmin went from a melted yellow shape to a full character with leaf, eyes, and limbs.
+
+**Recipe** when an output looks wrong:
+
+```bash
+for s in 1 7 42 123 2024; do
+  python meadow_wb/infer.py --rgba YOUR.png --seed $s --out /tmp/try_$s.ply
+done
+# open each /tmp/try_*.ply in SuperSplat, keep the best
+```
+
+The cost is **~30 s per retry on M1 Max** — practical to try 3-5 seeds before falling back to other knobs (`--no-shortcut` for slower-but-stricter SS, `--slat-cfg 7` for higher conditioning).
 
 ## Optimization Stack
 
