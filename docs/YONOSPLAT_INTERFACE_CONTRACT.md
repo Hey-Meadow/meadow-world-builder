@@ -138,6 +138,37 @@ All resolvable in ~30 min of upstream-code reading; assign as bootstrap-agent's 
 | Clean speed baseline | RunPod A100 | CUDA-native |
 | Apple-Silicon timing | Local M1 Max | actual target |
 
+## Component-wise param breakdown (from state-dict)
+
+| Component | Tensors | Params | Bytes |
+|---|---:|---:|---:|
+| `encoder.backbone.decoder` (12 cross-view blocks) | 648 | **453.6 M** | **1.81 GB** |
+| `encoder.backbone.encoder` (24 ViT blocks) | 343 | 304.4 M | 1.22 GB |
+| `encoder.point_decoder` (8 blocks) | 64 | 66.1 M | 264 MB |
+| `encoder.gaussian_decoder` (8 blocks) | 64 | 66.1 M | 264 MB |
+| `encoder.camera_decoder` (8 blocks) | 64 | 65.6 M | 262 MB |
+| `encoder.backbone.intrinsics_embed_layer` | 4 | 5.0 M | 20 MB |
+| `encoder.camera_head` | 20 | 2.1 M | 8 MB |
+| `encoder.backbone.intrinsic_head` | 4 | 1.0 M | 4 MB |
+| `encoder.gaussian_head` | 2 | 0.55 M | 2 MB |
+| `encoder.rgb_embed` | 4 | 0.31 M | 1 MB |
+| `encoder.point_head` | 2 | 0.15 M | 0.6 MB |
+| `encoder.backbone.register_token` | 1 | 0.01 M | — |
+| `encoder.backbone.image_mean/std` | 2 | 0 | — |
+| **Total** | **1222** | **965 M** | **3.86 GB** |
+
+**Load-bearing surprise**: the **CroCo decoder is 1.5× more expensive than the DINOv2 encoder** (453 M vs 304 M params). Each decoder block has 54 tensors vs the encoder's 14 — cross-attention (extra Q, K, V, proj plus auxiliary norms) inflates per-block param count by ~3×. The Metal port will need careful attention here; this is where multi-view fusion happens.
+
+## Resolved open questions (from `config/model/encoder/yonosplat.yaml` + source)
+
+1. **num_surfaces = 1** — one Gaussian per token, not 7. Token-to-Gaussian unrolling happens via `upscale_token_ratio=2` + `gaussians_per_axis=14`.
+2. **SH degree = 0** → `d_sh = 1` (DC only, no view-dependent colour).
+3. **Camera pose dim = 12** — 9-dim rotation matrix (`fc_rot`) + 3-dim translation (`fc_t`). Not quaternion.
+4. **Positional embedding = 2D sin/cos (MAE-style)**, not RoPE. RoPE inside CroCo is an internal detail.
+5. **`use_checkpoint: true`** is training-only (gradient checkpointing memory savings); inference path skips.
+
+The **539-dim gaussian_head output** is unpacked into a 2-D grid via the upscale head (each token → ~49 Gaussians × 11-dim before adapter remaps). Exact arithmetic to be confirmed when porting the GaussianAdapter — bake the formula into the agent prompt.
+
 ## Status
 
 - ✅ Upstream code cloned, MIT licence confirmed
@@ -145,7 +176,9 @@ All resolvable in ~30 min of upstream-code reading; assign as bootstrap-agent's 
 - ✅ `diff_gaussian_rasterization` stub written → encoder + decoder import cleanly
 - ✅ Weights downloaded (Pi3 + re10k.ckpt, ~7.7 GB total)
 - ✅ State-dict structure verified (1222 tensors, 965 M params)
-- ✅ Top-level architecture mapped (24 + 12 backbone blocks + 3 sub-decoders × 8 + 5 heads)
-- ⏳ Activation-dump harness — next bootstrap step
-- ⏳ Resolve open questions 1-5 in `gaussian_adapter.py`, `camera_head.py`, `pos_embed.py`
-- ⏳ Then: parallel-agent dispatch
+- ✅ Component-wise breakdown captured (see table above)
+- ✅ **5 open questions resolved** (see above)
+- ✅ Test input saved: `dumps/test_input.npz` (2-view 224×224 RGB)
+- ✅ Tensor-key map saved: `dumps/state_dict_tensor_map.json` (148 KB; agents can grep here instead of loading the 3.8 GB checkpoint)
+- ⏳ Real forward + per-block activation hook (`dump_pi3.py`) — needed before parallel-agent kickoff
+- ⏳ Parallel-agent dispatch (8 agents per dispatch plan above)
