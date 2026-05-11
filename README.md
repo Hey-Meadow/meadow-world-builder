@@ -34,7 +34,7 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 
 <sub>All 15 objects above were reconstructed from a single RGB image + mask on an Apple M1 Max, ~31 s end-to-end each (v0.0.2 default, curvature-cache on). Frames are rendered via macOS Quick Look on the exported `.ply` files (also shipped in <a href="assets/demos">assets/demos</a>).</sub>
 
-> **TL;DR.** Server-grade single-image 3D Gaussian Splatting reconstruction, distilled into a sub-2-minute pipeline on Apple Silicon. MoGe depth → Sparse-Structure DiT → SLAT DiT → Gaussian decoder, end-to-end in pure MLX, with shortcut distillation, bf16 mixed precision, custom Metal sparse-attention kernels, and decoder slimming. Brings 3DGS reconstruction from "needs an A100" to "runs on your laptop while you keep working".
+> **TL;DR.** Server-grade single-image 3D Gaussian Splatting reconstruction in **~30 seconds** on Apple Silicon. MoGe depth → Sparse-Structure DiT → SLAT DiT → Gaussian decoder, end-to-end in pure MLX, with shortcut distillation, bf16 mixed precision, custom Metal sparse-attention kernels, curvature-cache temporal reuse, and decoder slimming. Brings 3DGS reconstruction from "needs an A100" to "runs on your laptop while you keep working".
 
 ---
 
@@ -102,7 +102,7 @@ We ran the original PyTorch pipeline on an **NVIDIA A100 80GB PCIe** (RunPod) to
 <sub>† Includes ~16 s model load + heavy disk I/O from saving every intermediate tensor (script: `mlx_port/debug/scripts/dump_pt_reference.py`).</sub><br/>
 <sub>‡ Estimated by subtracting model-load and dump-overhead from the instrumented wall time. We have not yet rerun on A100 without instrumentation; the clean number could be lower.</sub>
 
-**Bottom line.** v0.0.2 on M1 Max is in the **same order of magnitude as a cloud A100** for this pipeline, with no cloud cost, no cold start, no data egress, and no GPU contention. This is the v0.0.3 baseline target to beat: a SLAT shortcut distillation (roadmap item) would push end-to-end into single-digit seconds.
+**Bottom line.** v0.0.2 on M1 Max is in the **same order of magnitude as a cloud A100** for this pipeline, with no cloud cost, no cold start, no data egress, and no GPU contention. A future SLAT shortcut distillation (~5–6× projected speedup on the SLAT stage) would push end-to-end into single-digit seconds.
 
 ## Output Quality
 
@@ -141,10 +141,12 @@ pip install -e .
 Pre-converted MLX weights are hosted on HuggingFace — no manual conversion needed:
 
 ```bash
-huggingface-cli login   # one-time, paste your HF token (free account works)
-huggingface-cli download akaiii/meadow-world-builder-weights \
+hf auth login   # one-time, paste your HF token (free account works)
+hf download akaiii/meadow-world-builder-weights \
     --local-dir meadow_wb/weights/sam3d_objects
 ```
+
+<sub>Older `huggingface-cli login` / `huggingface-cli download` syntax is deprecated in `huggingface_hub >= 1.0` — use `hf` as shown above.</sub>
 
 Contents (downloaded into `meadow_wb/weights/sam3d_objects/`):
 
@@ -163,7 +165,7 @@ Total ≈ **11.5 GB** on disk. Weights remain subject to their upstream licence 
 
 ## Quickstart
 
-Prerequisite: [Pre-trained Checkpoints](#pre-trained-checkpoints) Step 1-3 completed (`meadow_wb/weights/sam3d_objects/*.npz` populated).
+Prerequisite: weights downloaded per [Pre-trained Checkpoints](#pre-trained-checkpoints) above (`meadow_wb/weights/sam3d_objects/*.npz` populated).
 
 Single image + mask in, `.ply` out:
 
@@ -218,15 +220,15 @@ See [`docs/MATH_OPTIMIZATION_OPPORTUNITIES.md`](docs/MATH_OPTIMIZATION_OPPORTUNI
 ```
 RGB + mask
    │
-   ▼   (~1.5 s)
+   ▼   (~1.6 s)
 MoGe ViT-L  ────►  depth map
    │
-   ▼   (~10 s)
+   ▼   (~8 s)
 Sparse-Structure DiT  ────►  occupied voxel grid (≤16 000 voxels)
    │       (4-step shortcut)
-   ▼   (~80 s)
+   ▼   (~15 s)
 SLAT DiT  ────►  per-voxel structured latent
-   │       (25-step CFG-5)
+   │       (25-step CFG-5, ~76% curvature-cache hits)
    ▼   (~1 s)
 Gaussian Decoder (gs_4)  ────►  4 Gaussians / voxel  (≤64 000)
    │
@@ -234,34 +236,36 @@ Gaussian Decoder (gs_4)  ────►  4 Gaussians / voxel  (≤64 000)
 Outlier Prune
    │
    ▼
-.ply  /  .spz
+.ply  /  .spz   (total ~31 s on M1 Max)
 ```
 
 Each stage is independently importable from `meadow_wb/models/` — see [`docs/PORT_PLAN.md`](docs/PORT_PLAN.md) for the module map.
 
 ## Status
 
-**v0.0.1 (alpha, May 2026)** — first public release.
+**v0.0.2 (alpha, May 2026)** — second public release; curvature cache enabled by default.
 
 | Component | State | Notes |
 |---|---|---|
-| Inference pipeline (MoGe + SS DiT + SLAT DiT + GS decoder) | ✅ verified | smoke-tested on chair / table / plush against reference outputs |
-| Weight-conversion script (`convert_weights.py`) | ✅ verified | requires gated upstream HF access |
+| Inference pipeline (MoGe + SS DiT + SLAT DiT + GS decoder) | ✅ verified | quality-validated on chair / table / plush + 7 additional kidsroom-scene objects |
+| Pretrained MLX weights on HuggingFace | ✅ shipped | one `hf download` away, ~11.5 GB total |
+| Weight-conversion script (`convert_weights.py`) | ✅ available | only needed if you re-convert from upstream PyTorch checkpoints |
 | Custom Metal sparse attention kernel | ✅ verified | bundled, used by SLAT DiT |
 | `--use-shortcut` (4-step SS sampler) | ✅ verified | default-on |
-| `--auto-mask` (SAM-2 prompt fallback) | ⚠️ stubbed | use `--mask` for now |
-| Fast-SAM3D port (curvature caching + token carving) | 🚧 in progress | scaffold landed; not wired into sampler yet |
-| SLAT shortcut distillation | ⬜ roadmap | needs H100 training |
-| `gs_8` decoder | ⬜ roadmap | currently only `gs_4` |
+| Curvature cache (Fast-SAM3D ②a) | ✅ shipped | default-on at `eps=0.5`, ~2.77× end-to-end vs no cache |
+| `gs_8` decoder weights | ✅ available | shipped in HF release as `slat_decoder_gs.npz`; default code path uses `gs_4` |
+| `--auto-mask` (promptable segmentation fallback) | ⚠️ stubbed | use `--mask` for now |
+| SLAT shortcut distillation | ⬜ future work | needs H100 training |
+| Spatial token carving (Fast-SAM3D ②b) | ⬜ future work | deferred due to sparse voxel arch complexity |
 
-End-to-end smoke test passing on M1 Max with mean **~100 s / object**.
+End-to-end smoke test passing on M1 Max with mean **~31 s / object** (chair 30.1 s / table 31.5 s / plush 32.3 s).
 
 ## Limitations
 
 1. **SLAT diffusion is still the bottleneck.** No distilled SLAT shortcut yet; the SS shortcut alone leaves 80 %+ of wall time on the SLAT stage.
 2. **Hard scale clamp.** Splat scales are clamped at σ ≤ 0.010. The reference allows σ up to ~0.021; the trade is fewer outliers but slightly flatter fine detail (most visible on the plush face).
 3. **Plush appearance gap.** Lower opacity mean, larger bbox, and ~2× mean scale vs the reference on this single class — likely under-fit SLAT features. Tracked in [`docs/PLUSH_EYES_FIX_REPORT.md`](docs/PLUSH_EYES_FIX_REPORT.md).
-4. **`gs_4` only.** Reference uses `gs_8` (8 splats / voxel) plus decode-time pruning. We expose only the `gs_4` decoder for now; `gs_8` is on the roadmap.
+4. **`gs_4` is the default decode path.** `gs_8` weights are shipped in the HF release (`slat_decoder_gs.npz`) but the default `infer.py` flow uses `gs_4` (4 splats / voxel; ~64 k Gaussian cap). Switching to `gs_8` programmatically is wired but not yet exposed as a CLI flag.
 5. **No video / multi-frame support.** Single-image inference only.
 
 ## Acknowledgements
