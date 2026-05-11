@@ -187,6 +187,7 @@ class FlowMatching:
         cfg_strength: Optional[float] = None,
         key: Optional[mx.array] = None,
         x0: Optional[mx.array] = None,
+        cache=None,
     ) -> mx.array:
         """Run Euler ODE integration and return the final ``x_1`` latent.
 
@@ -212,6 +213,12 @@ class FlowMatching:
             Optional PRNG key for ``mx.random.normal``.
         x0
             Optional initial noise tensor (overrides ``shape``-based draw).
+        cache
+            Optional :class:`~meadow_wb.utils.cache.CurvatureCache` instance.
+            When provided, every ``step_fn`` call inside the Euler loop is
+            routed through ``cache.maybe_skip`` so quasi-linear segments can
+            reuse the previous tangent instead of forwarding the backbone.
+            When ``None`` (default) the loop is byte-identical to before.
 
         Returns
         -------
@@ -248,7 +255,13 @@ class FlowMatching:
             t1 = t_seq[i + 1]
             dt = t1 - t0
             t_in = t0 * self.time_scale
-            v = step_fn(x, t_in, cond)
+            if cache is None:
+                v = step_fn(x, t_in, cond)
+            else:
+                # Bind t_in/cond into a unary closure so the cache only
+                # sees the state x_t — matches the spec's full_eval_fn(x_t)
+                # signature and lets the no-cache path stay untouched.
+                v = cache.maybe_skip(x, lambda xt: step_fn(xt, t_in, cond))
             x = x + v * dt
 
         # Stash backbone call count for tests / profiling when CFG was used.

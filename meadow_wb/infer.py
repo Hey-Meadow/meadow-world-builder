@@ -147,6 +147,24 @@ def main():
         "--outlier-min-neighbors", type=int, default=3,
         help="Voxels with fewer neighbors (incl. self) within radius are pruned.",
     )
+    # ---- Fast-SAM3D mechanism 2a: curvature-aware tangent reuse (SLAT) -----
+    # See docs/SPEC_FAST_SAM3D.md section 2. Off by default; opt-in via flag.
+    ap.add_argument(
+        "--slat-curvature-cache", action="store_true",
+        help="Enable curvature-aware tangent reuse inside the SLAT sampler "
+             "(Fast-SAM3D mechanism 2a). Skips backbone evals when the "
+             "trajectory is quasi-linear.",
+    )
+    ap.add_argument(
+        "--slat-curvature-eps", type=float, default=1.5,
+        help="Accumulated relative-error threshold that forces an anchor "
+             "refresh. Lower = stricter quality, fewer cache hits.",
+    )
+    ap.add_argument(
+        "--slat-curvature-warmup", type=int, default=2,
+        help="Number of initial SLAT steps that always run a full forward "
+             "(needed to measure curvature before any skip can be taken).",
+    )
     args = ap.parse_args()
     # Default = MoGe (real depth) unless --dummy-pointmap is given.
     use_moge = not args.dummy_pointmap
@@ -210,6 +228,9 @@ def main():
         use_shortcut=use_shortcut,
         shortcut_steps=args.shortcut_steps,
         input_size=args.input_size,
+        slat_curvature_cache=args.slat_curvature_cache,
+        slat_curvature_eps=args.slat_curvature_eps,
+        slat_curvature_warmup=args.slat_curvature_warmup,
     )
     print(f"[run] full pipeline in {time.time() - t_run:.1f} s")
     print(f"[run] timing per stage:")

@@ -6,6 +6,7 @@ __pycache__/
 
 meadow3d/weights/*.npz
 meadow3d/weights/*.safetensors
+meadow_wb/weights/
 outputs/
 *.ply
 *.spz

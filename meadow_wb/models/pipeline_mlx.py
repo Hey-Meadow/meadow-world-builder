@@ -928,6 +928,9 @@ class SAM3DObjectsPipeline:
         use_shortcut: bool = False,
         shortcut_steps: int = 4,
         input_size: int = 518,
+        slat_curvature_cache: bool = False,
+        slat_curvature_eps: float = 1.5,
+        slat_curvature_warmup: int = 2,
     ) -> dict:
         """Run end-to-end. Input: HxWx4 uint8 RGBA (mask in alpha).
 
@@ -1042,10 +1045,22 @@ class SAM3DObjectsPipeline:
 
         # ---- Stage 2: SLAT sample ----
         t0 = time.time()
+        slat_cache = None
+        if slat_curvature_cache:
+            from meadow_wb.utils.cache import CurvatureCache
+            slat_cache = CurvatureCache(
+                error_threshold=slat_curvature_eps,
+                warmup=slat_curvature_warmup,
+            )
         slat_feats = self._sample_slat(
-            slat_cond_tokens, coords, seed=seed, num_steps=slat_steps, cfg=slat_cfg
+            slat_cond_tokens, coords, seed=seed, num_steps=slat_steps,
+            cfg=slat_cfg, cache=slat_cache,
         )
         timing["slat_flow"] = time.time() - t0
+        if slat_cache is not None:
+            timing["slat_cache_hits"] = slat_cache.stats.cache_hits
+            timing["slat_cache_full"] = slat_cache.stats.full_evals
+            timing["slat_cache_hit_rate"] = slat_cache.stats.hit_rate
 
         # ---- Denormalize ----
         slat_feats = slat_feats * SLAT_STD + SLAT_MEAN
@@ -1312,8 +1327,15 @@ class SAM3DObjectsPipeline:
         seed: int,
         num_steps: int,
         cfg: float,
+        cache=None,
     ) -> mx.array:
-        """Run SLAT flow at given sparse coords. Returns (N, 8) sparse latent."""
+        """Run SLAT flow at given sparse coords. Returns (N, 8) sparse latent.
+
+        ``cache`` is an optional :class:`CurvatureCache`; when provided the
+        loop routes the CFG-combined velocity through ``cache.maybe_skip``
+        so quasi-linear segments can reuse the previous tangent (Fast-SAM3D
+        mechanism (2a)). When ``None`` the loop is unchanged.
+        """
         # Clear submconv neighbor cache so we rebuild for THIS coord set.
         clear_neighbor_cache()
         N = int(coords.shape[0])
@@ -1330,22 +1352,28 @@ class SAM3DObjectsPipeline:
         # Time schedule.
         t_seq_np = np.linspace(0.0, 1.0, num_steps + 1).astype(np.float32)
         time_scale = 1000.0
+
+        def _full_eval(xt: mx.array, t_in: mx.array) -> mx.array:
+            v_cond = self._slat_backbone_velocity(
+                xt, coords, coords_down, idx_up, t_in, cond_tokens
+            )
+            if cfg > 0.0:
+                uncond = mx.zeros_like(cond_tokens)
+                v_uncond = self._slat_backbone_velocity(
+                    xt, coords, coords_down, idx_up, t_in, uncond
+                )
+                return (1.0 + cfg) * v_cond - cfg * v_uncond
+            return v_cond
+
         for i in range(num_steps):
             t0 = float(t_seq_np[i])
             t1 = float(t_seq_np[i + 1])
             dt = t1 - t0
             t_in = mx.array([t0 * time_scale], dtype=mx.float32)
-            v_cond = self._slat_backbone_velocity(
-                x, coords, coords_down, idx_up, t_in, cond_tokens
-            )
-            if cfg > 0.0:
-                uncond = mx.zeros_like(cond_tokens)
-                v_uncond = self._slat_backbone_velocity(
-                    x, coords, coords_down, idx_up, t_in, uncond
-                )
-                v = (1.0 + cfg) * v_cond - cfg * v_uncond
+            if cache is None:
+                v = _full_eval(x, t_in)
             else:
-                v = v_cond
+                v = cache.maybe_skip(x, lambda xt, _t=t_in: _full_eval(xt, _t))
             x = x + v * dt
             mx.eval(x)
         return x
