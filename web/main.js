@@ -1530,10 +1530,6 @@ async function main() {
 
         if (vertexCount > 0) {
             document.getElementById("spinner").style.display = "none";
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            // Draw grid first (behind splats)
-            drawGrid(actualViewMatrix, projectionMatrix);
-            gl.useProgram(program);
             gl.uniformMatrix4fv(u_view, false, actualViewMatrix);
 
             // ---- Meadow iridescent uniforms (per-frame) ------------------
@@ -1548,7 +1544,20 @@ async function main() {
             const invView = invert4(actualViewMatrix);
             gl.uniform3f(u_camera_pos, invView[12], invView[13], invView[14]);
 
+            gl.clear(gl.COLOR_BUFFER_BIT);
             gl.drawArraysInstanced(gl.TRIANGLE_FAN, 0, 4, vertexCount);
+
+            // Draw grid as overlay AFTER splats — avoid state interference with splat program.
+            drawGrid(actualViewMatrix, projectionMatrix);
+            // Rebind splat program + attributes for next frame's loop start.
+            gl.useProgram(program);
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            gl.enableVertexAttribArray(a_position);
+            gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 0, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, indexBuffer);
+            gl.enableVertexAttribArray(a_index);
+            gl.vertexAttribIPointer(a_index, 1, gl.INT, false, 0, 0);
+            gl.vertexAttribDivisor(a_index, 1);
         } else {
             gl.clear(gl.COLOR_BUFFER_BIT);
             document.getElementById("spinner").style.display = "";
