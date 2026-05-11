@@ -13,29 +13,35 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
     <td align="center"><img src="assets/gallery/chair_clean.gif" width="180"/><br/><sub>chair</sub></td>
     <td align="center"><img src="assets/gallery/table_clean.gif" width="180"/><br/><sub>table</sub></td>
     <td align="center"><img src="assets/gallery/oatchi.gif" width="180"/><br/><sub>Oatchi</sub></td>
-    <td align="center"><img src="assets/gallery/cat.gif" width="180"/><br/><sub>cat</sub></td>
+    <td align="center"><img src="assets/gallery/pikmin_r.gif" width="180"/><br/><sub>red pikmin</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="assets/gallery/objectf_clean.gif" width="180"/><br/><sub>misc</sub></td>
+    <td align="center"><img src="assets/gallery/pikmin_y.gif" width="180"/><br/><sub>yellow pikmin</sub></td>
+    <td align="center"><img src="assets/gallery/pikmin_b.gif" width="180"/><br/><sub>blue pikmin</sub></td>
+    <td align="center"><img src="assets/gallery/pikmin_p.gif" width="180"/><br/><sub>purple pikmin</sub></td>
     <td align="center"><img src="assets/gallery/toy_1.gif" width="180"/><br/><sub>toy 1</sub></td>
+  </tr>
+  <tr>
     <td align="center"><img src="assets/gallery/toy_2.gif" width="180"/><br/><sub>toy 2</sub></td>
     <td align="center"><img src="assets/gallery/toy_3.gif" width="180"/><br/><sub>toy 3</sub></td>
-  </tr>
-  <tr>
     <td align="center"><img src="assets/gallery/toy_4.gif" width="180"/><br/><sub>toy 4</sub></td>
     <td align="center"><img src="assets/gallery/toy_5.gif" width="180"/><br/><sub>toy 5</sub></td>
-    <td align="center"><img src="assets/gallery/toy_6.gif" width="180"/><br/><sub>toy 6</sub></td>
-    <td align="center"><img src="assets/gallery/toy_7.gif" width="180"/><br/><sub>toy 7</sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="assets/gallery/toy_6.gif" width="180"/><br/><sub>toy 6</sub></td>
+    <td align="center"><img src="assets/gallery/toy_7.gif" width="180"/><br/><sub>toy 7</sub></td>
     <td align="center"><img src="assets/gallery/toy_8.gif" width="180"/><br/><sub>toy 8</sub></td>
     <td align="center"><img src="assets/gallery/toy_9.gif" width="180"/><br/><sub>toy 9</sub></td>
+  </tr>
+  <tr>
     <td align="center"><img src="assets/gallery/toy_10.gif" width="180"/><br/><sub>toy 10</sub></td>
+    <td align="center"></td>
+    <td align="center"></td>
     <td align="center"></td>
   </tr>
 </table>
 
-<sub>All 15 objects above were reconstructed from a single RGB image + mask on an Apple M1 Max, ~31 s end-to-end each (v0.0.2 default, curvature-cache on). Frames are rendered via macOS Quick Look on the exported `.ply` files (also shipped in <a href="assets/demos">assets/demos</a>).</sub>
+<sub>All 17 objects above were reconstructed from a single RGB image + mask on an Apple M1 Max, ~20–35 s end-to-end each (v0.0.2 default, curvature-cache on). Frames are rendered via macOS Quick Look on the exported `.ply` files (also shipped in <a href="assets/demos">assets/demos</a>).</sub>
 
 > **TL;DR.** Server-grade single-image 3D Gaussian Splatting reconstruction in **~30 seconds** on Apple Silicon. MoGe depth → Sparse-Structure DiT → SLAT DiT → Gaussian decoder, end-to-end in pure MLX, with shortcut distillation, bf16 mixed precision, custom Metal sparse-attention kernels, curvature-cache temporal reuse, and decoder slimming. Brings 3DGS reconstruction from "needs an A100" to "runs on your laptop while you keep working".
 
