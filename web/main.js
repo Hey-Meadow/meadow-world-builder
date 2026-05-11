@@ -1163,7 +1163,8 @@ async function main() {
                 );
                 // inv[13] = preY;
             } else {
-                let d = 4;
+                const _sc = (window.iriState && window.iriState.sceneCenter) || [0,0,0];
+                const d = Math.max(0.3, Math.hypot(inv[12]-_sc[0], inv[13]-_sc[1], inv[14]-_sc[2]));
                 inv = translate4(inv, 0, 0, d);
                 inv = rotate4(inv, -(e.deltaX * scale) / innerWidth, 0, 1, 0);
                 inv = rotate4(inv, (e.deltaY * scale) / innerHeight, 1, 0, 0);
@@ -1197,7 +1198,8 @@ async function main() {
             let inv = invert4(viewMatrix);
             let dx = (5 * (e.clientX - startX)) / innerWidth;
             let dy = (5 * (e.clientY - startY)) / innerHeight;
-            let d = 4;
+            const _sc = (window.iriState && window.iriState.sceneCenter) || [0,0,0];
+            const d = Math.max(0.3, Math.hypot(inv[12]-_sc[0], inv[13]-_sc[1], inv[14]-_sc[2]));
 
             inv = translate4(inv, 0, 0, d);
             inv = rotate4(inv, dx, 0, 1, 0);
@@ -1266,7 +1268,9 @@ async function main() {
                 let dx = (4 * (e.touches[0].clientX - startX)) / innerWidth;
                 let dy = (4 * (e.touches[0].clientY - startY)) / innerHeight;
 
-                let d = 4;
+                const _sc = (window.iriState && window.iriState.sceneCenter) || [0,0,0];
+
+                const d = Math.max(0.3, Math.hypot(inv[12]-_sc[0], inv[13]-_sc[1], inv[14]-_sc[2]));
                 inv = translate4(inv, 0, 0, d);
                 // inv = translate4(inv,  -x, -y, -z);
                 // inv = translate4(inv,  x, y, z);
@@ -1472,7 +1476,8 @@ async function main() {
         if (
             ["KeyJ", "KeyK", "KeyL", "KeyI"].some((k) => activeKeys.includes(k))
         ) {
-            let d = 4;
+            const _sc = (window.iriState && window.iriState.sceneCenter) || [0,0,0];
+            const d = Math.max(0.3, Math.hypot(inv[12]-_sc[0], inv[13]-_sc[1], inv[14]-_sc[2]));
             inv = translate4(inv, 0, 0, d);
             inv = rotate4(
                 inv,
