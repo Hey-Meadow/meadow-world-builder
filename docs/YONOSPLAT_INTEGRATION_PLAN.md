@@ -117,3 +117,15 @@ Recommend **option 2 until v0.1.x** — defer the split until tooling like `conv
 ## Next concrete action
 
 Run a single forward pass through the assembler-with-numpy-fallbacks on `test_input.npz` and compare against `dumps/per_block/backbone_full.npz`. Whichever sub-module's `load_*` call breaks first becomes the day-1 task for the integration follow-up.
+
+## ✅ Integration sprint result (2026-05-12)
+
+End-to-end forward **runs cleanly on M1 Max in 363 ms (median, 5 runs, fp32)** on the real re10k checkpoint. See `meadow_sb/BENCHMARK_YONOSPLAT.md` for the full table. Outputs match expected shapes and ranges (view-1-centric pose ≈ identity, scales capped at 0.3, opacities in [0, 1], positive depths).
+
+The forward landed by patching three issues at the integration boundary rather than re-touching each agent's module:
+
+1. **Head loader prefix convention** — `load_*_head()` factories want prefix WITHOUT trailing dot; sub-decoder / encoder loaders want it WITH. Documented in `yonosplat.py` `from_state_dict`.
+2. **Pos-embed grid mismatch** — re10k ckpt ships a 37×37 pos_embed; `prepare_tokens` needs 16×16 for 224 inputs. Added one-time PyTorch-side bicubic interp inside `from_state_dict` so the load completes cleanly.
+3. **Five integration stubs** (intrinsics_embed_layer skipped, dual-concat tiled, pixel_shuffle in assembler, etc.) — flagged inline with `STUB:` comments and listed in `BENCHMARK_YONOSPLAT.md` § Caveats.
+
+Numerical parity vs PT reference is the next milestone — separate work, won't change the wiring.
