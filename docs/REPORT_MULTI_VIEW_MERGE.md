@@ -45,15 +45,49 @@ p95    = 0.0007
 
 Error / object size ≈ 0.1 %. **Essentially perfect alignment.** ICP fitness 0.524 is misleading: it's measured against the *downsampled* version and reflects coverage, not accuracy.
 
-## Real multi-view test — DEFERRED
+## Real multi-view test — FAILED (negative result)
 
-Single-image 3DGS outputs are in *object-centric* frames whose orientation depends on the input camera angle. Two views of the same object captured from very different angles produce PLYs in fundamentally different frames — point-only ICP cannot recover the mapping without either:
+**Test dataset.** A Mario-style toy mushroom photographed from four cardinal angles (`f` / `b` / `l` / `r`), each a clean RGBA 256×256 transparent-BG PNG:
 
-1. **Initial pose estimate** from image-side (DUSt3R / MASt3R / COLMAP)
-2. **Image-conditioned 3DGS fusion** trained jointly on multi-view inputs (the original 3DGS approach)
-3. **Strong shape prior** that survives view changes (FPFH on geometric descriptors — but the legacy RANSAC that does this segfaults on ARM)
+| View | Single-image WB output |
+|---|---|
+| <img src="../assets/multiview_test/mushroom_view_f.png" width="160"/> | Front — face / cheeks visible |
+| <img src="../assets/multiview_test/mushroom_view_b.png" width="160"/> | Back — white stripe, no face |
+| <img src="../assets/multiview_test/mushroom_view_l.png" width="160"/> | Left — face turned aside |
+| <img src="../assets/multiview_test/mushroom_view_r.png" width="160"/> | Right — face mirrored |
 
-We don't currently have multi-angle photo sets of the same object to test option-1, and option-2 is a different project entirely. **The prototype is wired up; the real-world fusion path is an open research direction.**
+Each view ran `meadow_wb/infer.py --rgba ... --use-moge --use-shortcut --dtype mixed --prune-outliers` cleanly (40–46 s, all 64 k Gaussians).
+
+**Merger result.** Running `merge_views.py` with reference frame = `f`, 8 yaw hypotheses, voxel 0.015:
+
+```
+view 1 (l) → view 0:  fitness=0.235  inlier_rmse=0.0045  (1.4s)
+view 2 (b) → view 0:  fitness=0.430  inlier_rmse=0.0042  (1.7s)
+view 3 (r) → view 0:  fitness=0.209  inlier_rmse=0.0045  (1.8s)
+merged.ply: 256 000 Gaussians (17.4 MB)
+```
+
+<img src="../assets/multiview_test/mushroom_merged_fail.png" width="280"/>
+
+ICP fitness 0.21–0.43 (vs synthetic test's effectively-1.0) confirms low correspondence overlap. The merged PLY is **four mushroom shells stacked at slightly different orientations**, not a unified 360° model — the face features overlap incoherently in the cap region.
+
+## Why it failed (the load-bearing insight)
+
+Meadow World Builder is a **single-image** model: every output is "the object facing the camera, in an object-centric frame". The four outputs from this test are therefore **four near-duplicate mushrooms all facing forward** — each one *complete on its own* in a frame the network independently decided.
+
+There is no "back of the mushroom from view `f`" Gaussian — every view's network hallucinated the entire 360° geometry from one image. ICP correctly aligns the four duplicates on top of each other, but that's pointless: they're not complementary fragments of a single mushroom, they're four redundant reconstructions of the same mushroom.
+
+**The fundamental limitation: ICP-on-points cannot turn a single-image model into a multi-view model.** This is architecture, not algorithm.
+
+## What would actually work
+
+| Path | Tool / approach | Effort |
+|---|---|---|
+| A. Multi-view → single 3DGS in one pass | [LGM](https://github.com/3DTopia/LGM), [CRM](https://github.com/thu-ml/CRM), [InstantMesh](https://github.com/TencentARC/InstantMesh), MVDream→3DGS | use existing OSS |
+| B. Canonical-pose head retrain | Modify Meadow WB to consume `(image, view_id)` and emit fixed world-frame output | 1–2 weeks GPU + retrain |
+| C. Image-side pose + vanilla 3DGS | [DUSt3R](https://github.com/naver/dust3r) / [MASt3R](https://github.com/naver/mast3r) → poses → standard 3DGS training | minutes per object, well-trodden |
+
+For our current product roadmap, **Path A** (use an existing multi-view-to-3DGS model alongside Meadow WB) is the cheapest add-on if multi-view inputs become a real customer need. Path C is the gold standard but a different stack entirely.
 
 ## Known limitations
 
