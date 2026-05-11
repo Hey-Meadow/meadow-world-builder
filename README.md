@@ -50,9 +50,8 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 8. [Pipeline](#pipeline)
 9. [Status](#status)
 10. [Limitations](#limitations)
-11. [Roadmap](#roadmap)
-12. [Acknowledgements](#acknowledgements)
-13. [Citation](#citation)
+11. [Acknowledgements](#acknowledgements)
+12. [Citation](#citation)
 
 ---
 
@@ -118,35 +117,28 @@ pip install -e .
 
 ## Pre-trained Checkpoints
 
-Weights are **not bundled with this repo**. They come from a gated upstream HuggingFace release; users must accept the upstream licence and run our one-time conversion to MLX `.npz`.
-
-**Step 1.** Request access to the gated upstream weights repository and accept its licence terms.
-
-**Step 2.** Download (~12 GB):
+Pre-converted MLX weights are hosted on HuggingFace — no manual conversion needed:
 
 ```bash
-huggingface-cli login   # one-time, paste your HF token
-huggingface-cli download <upstream/weights-repo> --local-dir checkpoints/upstream
+huggingface-cli login   # one-time, paste your HF token (free account works)
+huggingface-cli download akaiii/meadow-world-builder-weights \
+    --local-dir meadow_wb/weights/sam3d_objects
 ```
 
-**Step 3.** Convert PyTorch → MLX:
-
-```bash
-python meadow_wb/scripts/convert_weights.py \
-    --ckpt-dir checkpoints/upstream/checkpoints \
-    --out      meadow_wb/weights/sam3d_objects
-```
-
-This produces:
+Contents (downloaded into `meadow_wb/weights/sam3d_objects/`):
 
 | File | Source module | Size |
 |---|---|---:|
-| `ss_flow.npz` | sparse-structure DiT | 1.1 GB |
-| `slat_flow.npz` | SLAT DiT | 2.4 GB |
-| `slat_decoder_gs_4.npz` | Gaussian decoder (4 splats / voxel) | 180 MB |
-| `moge_vitl.npz` | MoGe ViT-L depth backbone | 1.3 GB |
+| `ss_flow.npz`           | sparse-structure DiT | 3.3 GB |
+| `slat_flow.npz`         | SLAT DiT | 2.0 GB |
+| `ss_embedder.npz`       | image conditioning (SS) | 2.2 GB |
+| `slat_embedder.npz`     | image conditioning (SLAT) | 2.2 GB |
+| `ss_decoder.npz`        | SS occupancy decoder | 166 MB |
+| `slat_decoder_gs_4.npz` | Gaussian decoder (4 splats / voxel) | 192 MB |
+| `slat_decoder_gs.npz`   | Gaussian decoder (8 splats / voxel) | 192 MB |
+| `moge_vitl.npz`         | MoGe ViT-L depth backbone | 1.2 GB |
 
-Total ≈ **5.0 GB** on disk. Weights remain subject to their upstream licence; see `UPSTREAM_LICENSES/`.
+Total ≈ **11.5 GB** on disk. Weights remain subject to their upstream licence — see [`UPSTREAM_LICENSES/`](UPSTREAM_LICENSES).
 
 ## Quickstart
 
@@ -249,15 +241,6 @@ End-to-end smoke test passing on M1 Max with mean **~100 s / object**.
 3. **Plush appearance gap.** Lower opacity mean, larger bbox, and ~2× mean scale vs the reference on this single class — likely under-fit SLAT features. Tracked in [`docs/PLUSH_EYES_FIX_REPORT.md`](docs/PLUSH_EYES_FIX_REPORT.md).
 4. **`gs_4` only.** Reference uses `gs_8` (8 splats / voxel) plus decode-time pruning. We expose only the `gs_4` decoder for now; `gs_8` is on the roadmap.
 5. **No video / multi-frame support.** Single-image inference only.
-
-## Roadmap
-
-- [ ] SLAT shortcut distillation (4-step SLAT → ~25–35 s end-to-end)
-- [ ] `gs_8` decoder support + decode-time pruning
-- [ ] Auto-mask via promptable segmentation model in MLX (`--auto-mask` is stubbed)
-- [ ] FlashAttention-style fused kernel for SLAT DiT
-- [ ] M4 Pro / Max benchmark numbers
-- [ ] WebGL viewer with native `.spz` streaming
 
 ## Acknowledgements
 
