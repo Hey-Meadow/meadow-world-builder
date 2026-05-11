@@ -81,6 +81,13 @@ const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerH
 camera.position.set(0.8, 0.3, 2.4);
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(0, 0, 0);
+// Clamp polar to avoid the over-the-pole gimbal flip when dragging up/down.
+controls.minPolarAngle = Math.PI * 0.1;
+controls.maxPolarAngle = Math.PI * 0.9;
+// OrbitControls' default horizontal drag direction feels reversed for this
+// kind of "look at single object" use; invert by setting rotateSpeed < 0.
+// (Three.js accepts negative — internally it just multiplies the delta.)
+controls.rotateSpeed = -1.0;
 controls.update();
 
 // Subtle ambient + directional light (mesh mode benefits)
