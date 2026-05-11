@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meadow-world-builder"
-version = "0.0.1"
+version = "0.0.2"
 description = "Meadow - World Builder: single-image 3D Gaussian Splatting on Apple Silicon (MLX)"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
