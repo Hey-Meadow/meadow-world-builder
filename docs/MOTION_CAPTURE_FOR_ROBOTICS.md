@@ -16,6 +16,35 @@ Robot policy training (RL, imitation learning, BC, diffusion policies) is bottle
 
 Steps 1-4 are demonstrated here. Step 5 is the customer-specific glue — every humanoid platform (Unitree H1, Boston Dynamics Atlas, Tesla Optimus, etc.) has its own DoF count and joint axes, so retargeting code lives downstream of this dataset.
 
+## Speed (M1 Max, MLX port)
+
+Measured on Apple M1 Max, MLX 0.31.2, 15-run mean (source: `mlx_port/docs/PROFILE_REPORT.md` in the SAM 3D Body repo).
+
+| Stage | Time | Share |
+|---|---:|---:|
+| ViT-H backbone (32 transformer blocks) | 179 ms | 94 % |
+| Body decoder (6 layers) | 11 ms | 6 % |
+| Camera + pose heads | 0.8 ms | < 1 % |
+| **Total per frame** | **~190 ms** | **100 %** |
+
+<img src="../assets/motion_capture/perf_per_frame.png" width="640"/>
+
+### Total pipeline time vs input video length
+
+Per-frame cost is constant (no fancy temporal sharing yet), so total scales linearly with frame count:
+
+| Input video (30 fps) | Frames | Processing time |
+|---|---:|---:|
+| 1 s | 30 | 5.7 s |
+| 5 s | 150 | 28.5 s |
+| 10 s | 300 | 57 s |
+| 30 s | 900 | 171 s |
+| 60 s | 1800 | 342 s |
+
+<img src="../assets/motion_capture/perf_video_length.png" width="640"/>
+
+A 1-minute phone-recorded dance ⇒ ~5.7 minutes of M1 Max time → 1800 frames of 70-joint 3D skeleton, fully offline, no cloud / GPU rental.
+
 ## Demo (4-second clip from a 30 fps phone video)
 
 | Pipeline frame | What it shows |
