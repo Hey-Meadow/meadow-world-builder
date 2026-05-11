@@ -12,23 +12,26 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image â†
   <tr>
     <td align="center"><img src="assets/gallery/chair_clean.gif" width="180"/><br/><sub>chair</sub></td>
     <td align="center"><img src="assets/gallery/table_clean.gif" width="180"/><br/><sub>table</sub></td>
-    <td align="center"><img src="assets/gallery/objectf_clean.gif" width="180"/><br/><sub>misc-1</sub></td>
     <td align="center"><img src="assets/gallery/plush.gif" width="180"/><br/><sub>plush</sub></td>
-    <td align="center"><img src="assets/gallery/objecte.gif" width="180"/><br/><sub>misc-2</sub></td>
+    <td align="center"><img src="assets/gallery/objecte.gif" width="180"/><br/><sub>misc-1</sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="assets/gallery/objectf_clean.gif" width="180"/><br/><sub>misc-2</sub></td>
     <td align="center"><img src="assets/gallery/toy_1.gif" width="180"/><br/><sub>toy 1</sub></td>
     <td align="center"><img src="assets/gallery/toy_2.gif" width="180"/><br/><sub>toy 2</sub></td>
     <td align="center"><img src="assets/gallery/toy_3.gif" width="180"/><br/><sub>toy 3</sub></td>
-    <td align="center"><img src="assets/gallery/toy_4.gif" width="180"/><br/><sub>toy 4</sub></td>
-    <td align="center"><img src="assets/gallery/toy_5.gif" width="180"/><br/><sub>toy 5</sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="assets/gallery/toy_4.gif" width="180"/><br/><sub>toy 4</sub></td>
+    <td align="center"><img src="assets/gallery/toy_5.gif" width="180"/><br/><sub>toy 5</sub></td>
     <td align="center"><img src="assets/gallery/toy_6.gif" width="180"/><br/><sub>toy 6</sub></td>
     <td align="center"><img src="assets/gallery/toy_7.gif" width="180"/><br/><sub>toy 7</sub></td>
+  </tr>
+  <tr>
     <td align="center"><img src="assets/gallery/toy_8.gif" width="180"/><br/><sub>toy 8</sub></td>
     <td align="center"><img src="assets/gallery/toy_9.gif" width="180"/><br/><sub>toy 9</sub></td>
     <td align="center"><img src="assets/gallery/toy_10.gif" width="180"/><br/><sub>toy 10</sub></td>
+    <td align="center"></td>
   </tr>
 </table>
 
