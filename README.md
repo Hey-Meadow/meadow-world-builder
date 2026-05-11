@@ -61,8 +61,8 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 ## Highlights
 
 - **Single-Mac inference.** Full pipeline in pure MLX on Apple Silicon. No CUDA, no `torch` at inference, no Docker.
-- **~57× faster than the unoptimized M1 baseline.** Chair 1800 s → 30 s. Table 1800 s → 32 s. Plush 1800 s → 32 s. Mean ~**31 s / object** on M1 Max.
-- **Curvature-cache speedup** (Fast-SAM3D ②a) — on by default at `--slat-curvature-eps 0.5`, ~2.77× e2e vs no cache, quality-validated across chair / table / plush.
+- **~57× faster than the unoptimized M1 baseline.** Chair 1800 s → 30 s. Table 1800 s → 32 s. Oatchi 1800 s → 32 s. Mean ~**31 s / object** on M1 Max.
+- **Curvature-cache speedup** (Fast-SAM3D ②a) — on by default at `--slat-curvature-eps 0.5`, ~2.77× e2e vs no cache, quality-validated across chair / table / Oatchi.
 - **Numerically validated.** Quaternion / scale / opacity distributions match the published-reference tolerances ([`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md)).
 - **Streaming-friendly output.** Native `.ply` for SuperSplat and any standard 3DGS viewer, plus `.spz` (~7 MB) for web delivery.
 - **Reproducible.** One CLI entry point (`meadow_wb/infer.py`), pretrained weights on HuggingFace, ablation flags exposed end-to-end.
@@ -262,7 +262,7 @@ Each stage is independently importable from `meadow_wb/models/` — see [`docs/P
 
 | Component | State | Notes |
 |---|---|---|
-| Inference pipeline (MoGe + SS DiT + SLAT DiT + GS decoder) | ✅ verified | quality-validated on chair / table / plush + 7 additional kidsroom-scene objects |
+| Inference pipeline (MoGe + SS DiT + SLAT DiT + GS decoder) | ✅ verified | quality-validated on chair / table / Oatchi + 7 additional kidsroom-scene objects |
 | Pretrained MLX weights on HuggingFace | ✅ shipped | one `hf download` away, ~11.5 GB total |
 | Weight-conversion script (`convert_weights.py`) | ✅ available | only needed if you re-convert from upstream PyTorch checkpoints |
 | Custom Metal sparse attention kernel | ✅ verified | bundled, used by SLAT DiT |
@@ -273,13 +273,13 @@ Each stage is independently importable from `meadow_wb/models/` — see [`docs/P
 | SLAT shortcut distillation | ⬜ future work | needs H100 training |
 | Spatial token carving (Fast-SAM3D ②b) | ⬜ future work | deferred due to sparse voxel arch complexity |
 
-End-to-end smoke test passing on M1 Max with mean **~31 s / object** (chair 30.1 s / table 31.5 s / plush 32.3 s).
+End-to-end smoke test passing on M1 Max with mean **~31 s / object** (chair 30.1 s / table 31.5 s / Oatchi 32.3 s).
 
 ## Limitations
 
 1. **SLAT diffusion is still the bottleneck.** No distilled SLAT shortcut yet; the SS shortcut alone leaves 80 %+ of wall time on the SLAT stage.
-2. **Hard scale clamp.** Splat scales are clamped at σ ≤ 0.010. The reference allows σ up to ~0.021; the trade is fewer outliers but slightly flatter fine detail (most visible on the plush face).
-3. **Plush appearance gap.** Lower opacity mean, larger bbox, and ~2× mean scale vs the reference on this single class — likely under-fit SLAT features. Tracked in [`docs/PLUSH_EYES_FIX_REPORT.md`](docs/PLUSH_EYES_FIX_REPORT.md).
+2. **Hard scale clamp.** Splat scales are clamped at σ ≤ 0.010. The reference allows σ up to ~0.021; the trade is fewer outliers but slightly flatter fine detail (most visible on the Oatchi face).
+3. **Oatchi appearance gap.** Lower opacity mean, larger bbox, and ~2× mean scale vs the reference on this single class — likely under-fit SLAT features. Tracked in [`docs/PLUSH_EYES_FIX_REPORT.md`](docs/PLUSH_EYES_FIX_REPORT.md).
 4. **`gs_4` is the default decode path.** `gs_8` weights are shipped in the HF release (`slat_decoder_gs.npz`) but the default `infer.py` flow uses `gs_4` (4 splats / voxel; ~64 k Gaussian cap). Switching to `gs_8` programmatically is wired but not yet exposed as a CLI flag.
 5. **No video / multi-frame support.** Single-image inference only.
 
