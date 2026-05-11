@@ -1052,12 +1052,19 @@ async function main() {
             // matrix (Train scene default has tz=+6.55). Mirror that convention.
             const [cx, cy, cz] = e.data.sceneCenter;
             const r = e.data.sceneRadius || 1.0;
-            const dist = 5.2 * r;  // 2x further than initial 2.6x
+            const dist = 5.2 * r;
+            // The PLY's +Y axis is opposite to this viewer's screen-up convention,
+            // so we apply a 180° rotation around X (flip Y and Z) as part of the
+            // base view matrix. Column-major:
+            //   [1   0   0  0]    [1, 0,  0,  0,
+            //   [0  -1   0  0]     0,-1,  0,  0,
+            //   [0   0  -1  0]     0, 0, -1,  0,
+            //   [tx  ty  tz  1]    -cx, cy, dist + cz, 1]
             const m = [
                 1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                -cx, -cy, dist - cz, 1,
+                0, -1, 0, 0,
+                0, 0, -1, 0,
+                -cx, cy, dist + cz, 1,
             ];
             defaultViewMatrix.splice(0, 16, ...m);
             viewMatrix = m.slice();
