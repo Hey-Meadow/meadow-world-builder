@@ -43,6 +43,30 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 
 <sub>All 19 objects above were reconstructed from a single RGB image + mask on an Apple M1 Max, ~18–35 s end-to-end each (v0.0.2 default, curvature-cache on). Frames are rendered via macOS Quick Look on the exported `.ply` files (also shipped in <a href="assets/demos">assets/demos</a>).</sub>
 
+<details>
+<summary><b>Source images used for the character reconstructions above</b> (click to expand)</summary>
+
+<br/>
+
+<table>
+  <tr>
+    <td align="center"><img src="assets/sources/oatchi.png" height="140"/><br/><sub>Oatchi</sub></td>
+    <td align="center"><img src="assets/sources/P4_Moss.png" height="140"/><br/><sub>Moss</sub></td>
+    <td align="center"><img src="assets/sources/pikmin-r.png" height="140"/><br/><sub>red pikmin</sub></td>
+    <td align="center"><img src="assets/sources/pikmin-y.png" height="140"/><br/><sub>yellow pikmin</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/sources/pikmin-b.png" height="140"/><br/><sub>blue pikmin</sub></td>
+    <td align="center"><img src="assets/sources/pikmin-p.png" height="140"/><br/><sub>purple pikmin</sub></td>
+    <td align="center"><img src="assets/sources/pikmin-light.png" height="140"/><br/><sub>glow pikmin</sub></td>
+    <td align="center"></td>
+  </tr>
+</table>
+
+Each input is a single RGBA PNG with transparent background (the alpha channel doubles as the segmentation mask). All character likenesses © Nintendo, used here strictly for non-commercial demonstration of single-image 3D reconstruction; not for redistribution as standalone artwork.
+
+</details>
+
 > **TL;DR.** Server-grade single-image 3D Gaussian Splatting reconstruction in **~30 seconds** on Apple Silicon. MoGe depth → Sparse-Structure DiT → SLAT DiT → Gaussian decoder, end-to-end in pure MLX, with shortcut distillation, bf16 mixed precision, custom Metal sparse-attention kernels, curvature-cache temporal reuse, and decoder slimming. Brings 3DGS reconstruction from "needs an A100" to "runs on your laptop while you keep working".
 
 ---
