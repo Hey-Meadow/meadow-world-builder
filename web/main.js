@@ -687,6 +687,9 @@ uniform vec3  u_camera_pos;    // camera world position
 uniform float u_freq;          // hue cycles across n·v in [0,1]
 uniform float u_metallic_mix;  // 0 = candy rainbow, 1 = chrome + rings
 uniform float u_animate;       // 0 = static, 1 = phase sweeps with time
+uniform float u_ripple_amp;    // 0 = no ripple, 1 = strong water-surface wave
+uniform float u_ripple_freq;   // spatial frequency of the wave
+uniform float u_ripple_speed;  // wave travel speed
 
 in vec2 position;
 in int index;
@@ -697,6 +700,16 @@ out vec2 vPosition;
 void main () {
     uvec4 cen = texelFetch(u_texture, ivec2((uint(index) & 0x3ffu) << 1, uint(index) >> 10), 0);
     vec3 worldPos = uintBitsToFloat(cen.xyz);
+
+    // ---- Water-ripple vertex displacement ---------------------------------
+    // Wave radiates from scene centre; displaces each Gaussian along its
+    // radial direction by a sin(distance - time) wave.
+    vec3 rDir = worldPos - u_scene_center;
+    float rDist = length(rDir);
+    vec3 rNormDir = rDist > 1e-6 ? rDir / rDist : vec3(0.0, 1.0, 0.0);
+    float wave = sin(rDist * u_ripple_freq - u_time * u_ripple_speed);
+    worldPos += rNormDir * (u_ripple_amp * 0.05 * wave);
+
     vec4 cam = view * vec4(worldPos, 1);
     vec4 pos2d = projection * cam;
 
@@ -741,7 +754,9 @@ void main () {
     float ndotv = abs(dot(n, viewDir));
 
     float phase = u_animate * u_time * 0.25;
-    float hue = mod(ndotv * u_freq + phase, 1.0);
+    // Hue ripple: travelling wave adds extra hue offset from scene-centre distance.
+    float hueRipple = u_ripple_amp * 0.25 * wave;
+    float hue = mod(ndotv * u_freq + phase + hueRipple, 1.0);
     vec3 rainbow = 0.5 + 0.5 * sin(hue * 6.28318531 + vec3(0.0, 2.0944, 4.18879));
 
     vec3 metallic_base = vec3(0.78, 0.80, 0.86);
@@ -967,12 +982,18 @@ async function main() {
     const u_freq          = gl.getUniformLocation(program, "u_freq");
     const u_metallic_mix  = gl.getUniformLocation(program, "u_metallic_mix");
     const u_animate       = gl.getUniformLocation(program, "u_animate");
+    const u_ripple_amp    = gl.getUniformLocation(program, "u_ripple_amp");
+    const u_ripple_freq   = gl.getUniformLocation(program, "u_ripple_freq");
+    const u_ripple_speed  = gl.getUniformLocation(program, "u_ripple_speed");
     // Defaults (also overridable via UI sliders in index.html).
     window.iriState = window.iriState || {
         strength: 0.85,
         freq: 4.0,
         metallicMix: 0.95,
         animate: 1.0,
+        rippleAmp: 0.0,
+        rippleFreq: 8.0,
+        rippleSpeed: 3.0,
         sceneCenter: [0, 0, 0],
         t0: performance.now(),
     };
@@ -1544,6 +1565,9 @@ async function main() {
             gl.uniform1f(u_freq, window.iriState.freq);
             gl.uniform1f(u_metallic_mix, window.iriState.metallicMix);
             gl.uniform1f(u_animate, window.iriState.animate);
+            gl.uniform1f(u_ripple_amp, window.iriState.rippleAmp);
+            gl.uniform1f(u_ripple_freq, window.iriState.rippleFreq);
+            gl.uniform1f(u_ripple_speed, window.iriState.rippleSpeed);
             gl.uniform3fv(u_scene_center, window.iriState.sceneCenter);
             // Camera world position = inverse(view)[3].xyz
             const invView = invert4(actualViewMatrix);
