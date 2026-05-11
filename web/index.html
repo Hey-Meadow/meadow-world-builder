@@ -300,6 +300,7 @@ other
 			<label>hue freq <input id="iri-freq" type="range" min="0.5" max="12" step="0.1" value="4"/><span class="val" id="iri-freq-v">4.0</span></label>
 			<label>dream blur <input id="iri-blur" type="range" min="0" max="10" step="0.1" value="2.5"/><span class="val" id="iri-blur-v">2.5</span></label>
 			<label>animate <input id="iri-animate" type="checkbox" checked/></label>
+			<label>floor grid <input id="grid-show" type="checkbox" checked/></label>
 		</div>
 		<script>
 			(function () {
@@ -329,6 +330,11 @@ other
 				const anim = document.getElementById("iri-animate");
 				if (anim) anim.addEventListener("change", () => {
 					window.iriState.animate = anim.checked ? 1.0 : 0.0;
+				});
+				const gridEl = document.getElementById("grid-show");
+				if (gridEl) gridEl.addEventListener("change", () => {
+					window.gridState = window.gridState || {};
+					window.gridState.show = gridEl.checked;
 				});
 			})();
 		</script>

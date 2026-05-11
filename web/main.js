@@ -878,6 +878,87 @@ async function main() {
     const u_focal = gl.getUniformLocation(program, "focal");
     const u_view = gl.getUniformLocation(program, "view");
 
+    // ---- Floor grid + axis lines (debug overlay) ---------------------------
+    const gridVS = `#version 300 es
+        precision highp float;
+        uniform mat4 projection, view;
+        in vec3 position;
+        in vec3 color;
+        out vec3 vColor;
+        void main () {
+            vColor = color;
+            gl_Position = projection * view * vec4(position, 1.0);
+        }`;
+    const gridFS = `#version 300 es
+        precision highp float;
+        in vec3 vColor;
+        out vec4 fragColor;
+        void main () { fragColor = vec4(vColor, 0.75); }`;
+    const gridProg = (() => {
+        const v = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(v, gridVS); gl.compileShader(v);
+        if (!gl.getShaderParameter(v, gl.COMPILE_STATUS)) console.error("grid VS:", gl.getShaderInfoLog(v));
+        const f = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(f, gridFS); gl.compileShader(f);
+        if (!gl.getShaderParameter(f, gl.COMPILE_STATUS)) console.error("grid FS:", gl.getShaderInfoLog(f));
+        const p = gl.createProgram();
+        gl.attachShader(p, v); gl.attachShader(p, f); gl.linkProgram(p);
+        return p;
+    })();
+    const gridProj = gl.getUniformLocation(gridProg, "projection");
+    const gridView = gl.getUniformLocation(gridProg, "view");
+    const gridPosLoc = gl.getAttribLocation(gridProg, "position");
+    const gridColLoc = gl.getAttribLocation(gridProg, "color");
+
+    // Build grid: 21 lines per axis at y=0 (-1.0 to +1.0 step 0.1).
+    // Plus 3 axis lines (X red, Y green, Z blue) from origin to ±1.5.
+    const gridVerts = [];
+    const gridColors = [];
+    const greyBase = [0.35, 0.35, 0.4];
+    const greyOrigin = [0.6, 0.6, 0.7];
+    for (let i = -10; i <= 10; i++) {
+        const u = i * 0.1;
+        const col = (i === 0) ? greyOrigin : greyBase;
+        // line along X at z=u
+        gridVerts.push(-1.0, 0, u, 1.0, 0, u);
+        gridColors.push(...col, ...col);
+        // line along Z at x=u
+        gridVerts.push(u, 0, -1.0, u, 0, 1.0);
+        gridColors.push(...col, ...col);
+    }
+    // Axis lines
+    gridVerts.push(0, 0, 0, 1.5, 0, 0); gridColors.push(1, 0.3, 0.3, 1, 0.3, 0.3);
+    gridVerts.push(0, 0, 0, 0, 1.5, 0); gridColors.push(0.3, 1, 0.3, 0.3, 1, 0.3);
+    gridVerts.push(0, 0, 0, 0, 0, 1.5); gridColors.push(0.3, 0.5, 1, 0.3, 0.5, 1);
+
+    const gridVerts32 = new Float32Array(gridVerts);
+    const gridCols32 = new Float32Array(gridColors);
+    const gridVBO = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gridVBO);
+    gl.bufferData(gl.ARRAY_BUFFER, gridVerts32, gl.STATIC_DRAW);
+    const gridCBO = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gridCBO);
+    gl.bufferData(gl.ARRAY_BUFFER, gridCols32, gl.STATIC_DRAW);
+    const gridVertCount = gridVerts32.length / 3;
+
+    window.gridState = { show: true };
+
+    function drawGrid(viewM, projM) {
+        if (!window.gridState.show) return;
+        gl.useProgram(gridProg);
+        gl.uniformMatrix4fv(gridProj, false, projM);
+        gl.uniformMatrix4fv(gridView, false, viewM);
+        gl.bindBuffer(gl.ARRAY_BUFFER, gridVBO);
+        gl.enableVertexAttribArray(gridPosLoc);
+        gl.vertexAttribPointer(gridPosLoc, 3, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, gridCBO);
+        gl.enableVertexAttribArray(gridColLoc);
+        gl.vertexAttribPointer(gridColLoc, 3, gl.FLOAT, false, 0, 0);
+        gl.lineWidth(1.0);
+        gl.drawArrays(gl.LINES, 0, gridVertCount);
+        gl.useProgram(program); // switch back to splat program
+    }
+
     // ---- Meadow iridescent uniforms ----------------------------------------
     const u_time          = gl.getUniformLocation(program, "u_time");
     const u_iri_strength  = gl.getUniformLocation(program, "u_iri_strength");
@@ -1449,6 +1530,10 @@ async function main() {
 
         if (vertexCount > 0) {
             document.getElementById("spinner").style.display = "none";
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            // Draw grid first (behind splats)
+            drawGrid(actualViewMatrix, projectionMatrix);
+            gl.useProgram(program);
             gl.uniformMatrix4fv(u_view, false, actualViewMatrix);
 
             // ---- Meadow iridescent uniforms (per-frame) ------------------
@@ -1463,7 +1548,6 @@ async function main() {
             const invView = invert4(actualViewMatrix);
             gl.uniform3f(u_camera_pos, invView[12], invView[13], invView[14]);
 
-            gl.clear(gl.COLOR_BUFFER_BIT);
             gl.drawArraysInstanced(gl.TRIANGLE_FAN, 0, 4, vertexCount);
         } else {
             gl.clear(gl.COLOR_BUFFER_BIT);
