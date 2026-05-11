@@ -1,30 +1,40 @@
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
+                              MEADOW LICENSE
+                                  Version 1
+                              Issued May 2026
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Copyright 2026 Sheng-Kai Huang (Hey-Meadow). All rights reserved.
 
-       http://www.apache.org/licenses/LICENSE-2.0
+This software ("Meadow - World Builder") is released under the terms of
+the Apache License, Version 2.0 (the "License"). You may obtain a copy
+of the License at:
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Copyright 2026 Sheng-Kai Huang
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
-   Meadow - World Builder. This repository contains an independent third-party
-   MLX re-implementation of the SAM 3D Objects architecture. It is NOT
-   affiliated with, endorsed by, or maintained by Meta. The code, kernels, port scripts, benchmarks, and
-   documentation in this repository are original work licensed under
-   Apache 2.0. No model weights are distributed with this repository.
+---
 
-   Model weights, when downloaded separately by the user from upstream
-   sources (Meta SAM 3D Objects, MoGe, etc.), remain subject to their
-   respective licences and are NOT relicensed by this repository.
+NOTICE — partial reuse of upstream sources
 
-   Full Apache 2.0 license text:
-   https://www.apache.org/licenses/LICENSE-2.0.txt
+This work incorporates portions of and derivatives from upstream model
+architectures, reference implementations, and pretrained components.
+Use of these upstream sources is governed by their respective licenses,
+copies of which are included in the `UPSTREAM_LICENSES/` directory of
+this repository. By using this software you accept the terms of those
+upstream licenses to the extent they apply to your use.
+
+The Meadow brand, name, logo, original MLX implementation, Metal
+kernels, port scripts, benchmarks, documentation, and configuration
+files in this repository are original work by the authors and are
+licensed under Apache 2.0 as stated above.
+
+No model weights, datasets, or pretrained artifacts are distributed
+under this license; such artifacts, when used, remain subject to their
+original upstream license terms.
+
+---
+
+For full Apache 2.0 text:
+    https://www.apache.org/licenses/LICENSE-2.0.txt
