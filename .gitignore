@@ -3,6 +3,9 @@ __pycache__/
 .venv/
 .pytest_cache/
 .DS_Store
+*.egg-info/
+build/
+dist/
 
 meadow3d/weights/*.npz
 meadow3d/weights/*.safetensors
