@@ -1029,7 +1029,7 @@ async function main() {
             // matrix (Train scene default has tz=+6.55). Mirror that convention.
             const [cx, cy, cz] = e.data.sceneCenter;
             const r = e.data.sceneRadius || 1.0;
-            const dist = 2.6 * r;
+            const dist = 5.2 * r;  // 2x further than initial 2.6x
             const m = [
                 1, 0, 0, 0,
                 0, 1, 0, 0,
