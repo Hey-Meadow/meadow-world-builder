@@ -16,9 +16,9 @@
 
    Copyright 2026 Sheng-Kai Huang
 
-   This repository contains an independent third-party MLX re-implementation
-   of the SAM 3D Objects architecture. It is NOT affiliated with, endorsed by,
-   or maintained by Meta. The code, kernels, port scripts, benchmarks, and
+   Meadow World Builder. This repository contains an independent third-party
+   MLX re-implementation of the SAM 3D Objects architecture. It is NOT
+   affiliated with, endorsed by, or maintained by Meta. The code, kernels, port scripts, benchmarks, and
    documentation in this repository are original work licensed under
    Apache 2.0. No model weights are distributed with this repository.
 
