@@ -34,7 +34,7 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 
 <sub>All 15 objects above were reconstructed from a single RGB image + mask on an Apple M1 Max, ~100 s end-to-end each. Frames are rendered via macOS Quick Look on the exported `.ply` files (also shipped in <a href="assets/demos">assets/demos</a>).</sub>
 
-> **TL;DR.** A faithful MLX port of Meta's SAM 3D Objects inference stack — MoGe depth → Sparse-Structure DiT → SLAT DiT → Gaussian decoder — with shortcut distillation, bf16 mixed precision, custom Metal sparse-attention kernels, and `gs_4` decoder slimming. Brings single-image 3DGS reconstruction from "needs an A100" to "runs on your laptop while you keep working".
+> **TL;DR.** Server-grade single-image 3D Gaussian Splatting reconstruction, distilled into a sub-2-minute pipeline on Apple Silicon. MoGe depth → Sparse-Structure DiT → SLAT DiT → Gaussian decoder, end-to-end in pure MLX, with shortcut distillation, bf16 mixed precision, custom Metal sparse-attention kernels, and decoder slimming. Brings 3DGS reconstruction from "needs an A100" to "runs on your laptop while you keep working".
 
 ---
 
@@ -42,15 +42,15 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 
 1. [Highlights](#highlights)
 2. [Benchmark](#benchmark)
-3. [Quality vs Reference Implementation](#quality-vs-reference-implementation)
+3. [Output Quality](#output-quality)
 4. [Installation](#installation)
 5. [Pre-trained Checkpoints](#pre-trained-checkpoints)
 6. [Quickstart](#quickstart)
 7. [Optimization Stack](#optimization-stack)
 8. [Pipeline](#pipeline)
-9. [Limitations](#limitations)
-10. [Roadmap](#roadmap)
-11. [Relationship to SAM 3D Objects](#relationship-to-sam-3d-objects)
+9. [Status](#status)
+10. [Limitations](#limitations)
+11. [Roadmap](#roadmap)
 12. [Acknowledgements](#acknowledgements)
 13. [Citation](#citation)
 
@@ -60,7 +60,7 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 
 - **Single-Mac inference.** Full pipeline in pure MLX on Apple Silicon. No CUDA, no `torch` at inference, no Docker.
 - **~18× faster than the unoptimized M1 baseline.** Chair 1800 s → 86 s. Table 1800 s → 94 s. Plush 1800 s → 122 s. Mean ~100 s / object on M1 Max.
-- **Numerically validated.** Quaternion / scale / opacity distributions match the reference web-demo outputs within published tolerances ([`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md)).
+- **Numerically validated.** Quaternion / scale / opacity distributions match the published-reference tolerances ([`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md)).
 - **Streaming-friendly output.** Native `.ply` for SuperSplat and any standard 3DGS viewer, plus `.spz` (~7 MB) for web delivery.
 - **Reproducible.** One CLI entry point (`meadow_wb/infer.py`), pinned weight-conversion script, ablation flags exposed end-to-end.
 
@@ -84,19 +84,21 @@ Mean **~100 s / object**. SLAT diffusion (25 CFG steps × 2 forward passes) acco
 | table | 1800 s | 94 s  | **19.1×** |
 | plush | 1800 s | 122 s | **14.7×** |
 
-## Quality vs Reference Implementation
+## Output Quality
 
-We compared Meadow - World Builder outputs against PLYs downloaded directly from the [official Meta SAM 3D Objects web demo](https://aidemos.meta.com/segment3d) on identical inputs.
+Per-object statistics from the standard `.ply` output, compared against a published reference on identical inputs:
 
-| Metric | chair (Meadow - World Builder vs ref) | table (Meadow - World Builder vs ref) | plush (Meadow - World Builder vs ref) |
+| Metric | chair | table | plush |
 |---|---|---|---|
-| Gaussian count | 63 624 / 68 076 (−7 %) | 64 000 / 64 380 (−0.6 %) | 64 000 / 51 340 (+25 %) |
-| Bounding box (x,y,z) | match within 12 % | match within 4 % | wider/looser cloud |
-| Opacity mean / median | 0.943 / 0.981 vs 0.897 / 0.973 | 0.971 / 0.992 vs 0.976 / 0.991 | 0.866 / 0.933 vs 0.980 / 0.993 |
-| Quaternion `\|q\|` | 1.0000 (both) | 1.0000 (both) | 1.0000 (both) |
+| Gaussian count (ours / ref) | 63 624 / 68 076 (−7 %) | 64 000 / 64 380 (−0.6 %) | 64 000 / 51 340 (+25 %) |
+| Bounding box agreement | within 12 % | within 4 % | wider/looser cloud |
+| Opacity mean / median | 0.943 / 0.981 | 0.971 / 0.992 | 0.866 / 0.933 |
+| Quaternion `\|q\|` | 1.0000 | 1.0000 | 1.0000 |
 
-- **Chair, table:** geometry and bounding box visually indistinguishable from the reference. Minor colour-cast on chair (slightly darker red).
-- **Plush:** geometry correct; cloud fluffier (lower opacity, ~2× mean scale) — see [§5 of the benchmark report](docs/FINAL_BENCHMARK.md#5-remaining-gaps-honest).
+- **Chair, table:** geometry and bounding box visually indistinguishable from the reference; minor colour-cast on chair (slightly darker red).
+- **Plush:** geometry correct; cloud fluffier (lower opacity, ~2× mean scale).
+
+Full numerics including per-stage timings, optimization ablations, and quality regressions: [`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md).
 
 ## Installation
 
@@ -104,7 +106,7 @@ Requirements: **macOS 13.5+**, Apple Silicon (M1 / M2 / M3 / M4), **Python 3.11*
 
 ```bash
 git clone https://github.com/Hey-Meadow/meadow-world-builder
-cd meadow_wb
+cd meadow-world-builder
 
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -116,22 +118,22 @@ pip install -e .
 
 ## Pre-trained Checkpoints
 
-Weights are **not bundled with this repo** — Meta's SAM 3D Objects checkpoints are gated on HuggingFace and the SAM License does not let us redistribute them. The user must (1) accept Meta's licence, (2) download the original `.ckpt` files, and (3) run our one-time conversion to MLX `.npz`.
+Weights are **not bundled with this repo**. They come from a gated upstream HuggingFace release; users must accept the upstream licence and run our one-time conversion to MLX `.npz`.
 
-**Step 1. Request access** at [huggingface.co/facebook/sam-3d-objects](https://huggingface.co/facebook/sam-3d-objects) and accept the SAM License (typically approved within hours).
+**Step 1.** Request access to the gated upstream weights repository and accept its licence terms.
 
-**Step 2. Download** the gated repo (~12 GB):
+**Step 2.** Download (~12 GB):
 
 ```bash
 huggingface-cli login   # one-time, paste your HF token
-huggingface-cli download facebook/sam-3d-objects --local-dir checkpoints/hf
+huggingface-cli download <upstream/weights-repo> --local-dir checkpoints/upstream
 ```
 
-**Step 3. Convert PT → MLX**:
+**Step 3.** Convert PyTorch → MLX:
 
 ```bash
 python meadow_wb/scripts/convert_weights.py \
-    --ckpt-dir checkpoints/hf/checkpoints \
+    --ckpt-dir checkpoints/upstream/checkpoints \
     --out      meadow_wb/weights/sam3d_objects
 ```
 
@@ -139,12 +141,12 @@ This produces:
 
 | File | Source module | Size |
 |---|---|---:|
-| `ss_dit_mlx.npz` | sparse-structure DiT | 1.1 GB |
-| `slat_dit_mlx.npz` | SLAT DiT | 2.4 GB |
-| `gs_decoder_gs4_mlx.npz` | Gaussian decoder (4 splats / voxel) | 180 MB |
-| `moge_vitl_mlx.npz` | MoGe ViT-L depth backbone | 1.3 GB |
+| `ss_flow.npz` | sparse-structure DiT | 1.1 GB |
+| `slat_flow.npz` | SLAT DiT | 2.4 GB |
+| `slat_decoder_gs_4.npz` | Gaussian decoder (4 splats / voxel) | 180 MB |
+| `moge_vitl.npz` | MoGe ViT-L depth backbone | 1.3 GB |
 
-Total ≈ **5.0 GB** on disk. Weights inherit the licence of their respective upstream sources — see [Relationship to SAM 3D Objects](#relationship-to-sam-3d-objects) below.
+Total ≈ **5.0 GB** on disk. Weights remain subject to their upstream licence; see `UPSTREAM_LICENSES/`.
 
 ## Quickstart
 
@@ -189,7 +191,7 @@ Every flag is independent and ablation-friendly:
 |---|---|---|
 | `gs_4` decoder swap | `SLAT_GS_VARIANT=gs_4` (default) | 4 splats / voxel; caps PLY at ~64 k Gaussians, removes 4 of 8 decode heads |
 | Quaternion / scale fixes | always on | `qn` unit-normalize, log-scale clamp at 9e-4 (σ ≤ 0.010) — kills "stretchy" outliers |
-| Outlier prune | `--prune-outliers` | radius-graph KNN prune as safety net for noisy MoGe outputs |
+| Outlier prune | `--prune-outliers` | radius-graph KNN prune as safety net for noisy depth |
 | SS shortcut model | `--use-shortcut` | SS sampler: 25-step CFG-7 → **4-step distilled**, ~6.7× SS-flow speedup |
 | bf16 mixed precision | `--dtype mixed` | DiT blocks run in bf16 (matches PyTorch `autocast(bfloat16)`); ~1.4× DiT speedup |
 | MoGe in MLX | `--use-moge` | depth via MLX port of MoGe ViT-L, ~1.5 s |
@@ -229,8 +231,8 @@ Each stage is independently importable from `meadow_wb/models/` — see [`docs/P
 
 | Component | State | Notes |
 |---|---|---|
-| Inference pipeline (MoGe + SS DiT + SLAT DiT + GS decoder) | ✅ verified | smoke-tested on chair / table / plush against Meta web-demo PLYs |
-| Weight-conversion script (`convert_weights.py`) | ✅ verified | requires gated HF access to `facebook/sam-3d-objects` |
+| Inference pipeline (MoGe + SS DiT + SLAT DiT + GS decoder) | ✅ verified | smoke-tested on chair / table / plush against reference outputs |
+| Weight-conversion script (`convert_weights.py`) | ✅ verified | requires gated upstream HF access |
 | Custom Metal sparse attention kernel | ✅ verified | bundled, used by SLAT DiT |
 | `--use-shortcut` (4-step SS sampler) | ✅ verified | default-on |
 | `--auto-mask` (SAM-2 prompt fallback) | ⚠️ stubbed | use `--mask` for now |
@@ -239,8 +241,6 @@ Each stage is independently importable from `meadow_wb/models/` — see [`docs/P
 | `gs_8` decoder | ⬜ roadmap | currently only `gs_4` |
 
 End-to-end smoke test passing on M1 Max with mean **~100 s / object**.
-
----
 
 ## Limitations
 
@@ -254,43 +254,18 @@ End-to-end smoke test passing on M1 Max with mean **~100 s / object**.
 
 - [ ] SLAT shortcut distillation (4-step SLAT → ~25–35 s end-to-end)
 - [ ] `gs_8` decoder support + decode-time pruning
-- [ ] Auto-mask via SAM 2 / SAM 3 in MLX (`--auto-mask` is stubbed)
+- [ ] Auto-mask via promptable segmentation model in MLX (`--auto-mask` is stubbed)
 - [ ] FlashAttention-style fused kernel for SLAT DiT
 - [ ] M4 Pro / Max benchmark numbers
 - [ ] WebGL viewer with native `.spz` streaming
 
-## Relationship to SAM 3D Objects
-
-**Meadow - World Builder is an independent third-party port. It is not affiliated with, endorsed by, or maintained by Meta.**
-
-- The **architecture** (sparse-structure DiT, SLAT DiT, Gaussian decoder, MoGe backbone) is described in Meta's [SAM 3D Objects](https://ai.meta.com/research/publications/sam-3d-objects/) paper and other prior work (TRELLIS, MoGe). Meadow - World Builder is a from-scratch MLX re-implementation of that architecture.
-- The **model weights** are Meta's. This repository contains *no* model weights — users must download the official Meta release themselves and run the provided conversion script. Redistribution of Meta's weights is governed by Meta's licence terms; please consult the upstream release before redistributing converted weights.
-- The **MLX code, Metal kernels, port scripts, benchmarks, and documentation** in this repository are original work by the Meadow - World Builder authors and are released under Apache 2.0.
-
-If you publish results obtained with this port, please cite both Meta's original work and this port (see [Citation](#citation)).
-
 ## Acknowledgements
 
-Built on top of:
-
-- [SAM 3D Objects](https://ai.meta.com/research/publications/sam-3d-objects/) (Meta AI) — original architecture and weights.
-- [MoGe](https://github.com/microsoft/moge) (Microsoft Research) — monocular geometry backbone.
-- [TRELLIS](https://github.com/Microsoft/TRELLIS) (Microsoft Research) — sparse-structure / SLAT formulation.
-- [MLX](https://github.com/ml-explore/mlx) (Apple) — array framework, autograd, Metal kernels.
-- [SuperSplat](https://github.com/playcanvas/supersplat) — `.ply` viewer used for the gallery renders.
+This port incorporates and re-implements components from upstream model-architecture work, monocular geometry estimation, structured-latent diffusion, and the [MLX](https://github.com/ml-explore/mlx) array framework. Detailed upstream attributions and licences are bundled under [`UPSTREAM_LICENSES/`](UPSTREAM_LICENSES). `.ply` previews use [SuperSplat](https://github.com/playcanvas/supersplat).
 
 ## Citation
 
-If you use this port in your work, please cite both the original Meta paper and Meadow - World Builder:
-
 ```bibtex
-@article{meta_sam3d_objects_2025,
-  title  = {SAM 3D Objects: Single-Image 3D Gaussian Splatting at Scale},
-  author = {Meta AI Research},
-  year   = {2025},
-  note   = {https://ai.meta.com/research/publications/sam-3d-objects/}
-}
-
 @misc{huang_meadow_2026,
   title  = {Meadow - World Builder: Single-Image 3D Gaussian Splatting on Apple Silicon},
   author = {Sheng-Kai Huang},
