@@ -324,9 +324,6 @@ Each stage is independently importable from `meadow_wb/models/` — see [`docs/P
 | `--use-shortcut` (4-step SS sampler) | ✅ verified | default-on |
 | Curvature cache (Fast-SAM3D ②a) | ✅ shipped | default-on at `eps=0.5`, ~2.77× end-to-end vs no cache |
 | `gs_8` decoder weights | ✅ available | shipped in HF release as `slat_decoder_gs.npz`; default code path uses `gs_4` |
-| `--auto-mask` (promptable segmentation fallback) | ⚠️ stubbed | use `--mask` for now |
-| SLAT shortcut distillation | ⬜ future work | needs H100 training |
-| Spatial token carving (Fast-SAM3D ②b) | ⬜ future work | deferred due to sparse voxel arch complexity |
 
 End-to-end smoke test passing on M1 Max with mean **~31 s / object** (chair 30.1 s / table 31.5 s / Oatchi 32.3 s).
 
