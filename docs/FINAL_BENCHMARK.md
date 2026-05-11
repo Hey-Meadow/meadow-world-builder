@@ -204,3 +204,63 @@ for n in chair table plush; do
         --out /tmp/${n}_final_preview --no-mp4
 done
 ```
+
+---
+
+## 6. Curvature-cache speedup (Fast-SAM3D mechanism ②a)
+
+A training-free SLAT-flow accelerator added in commit `00cd72e`. The 25-step CFG
+loop is dominated by repeated DiT forwards on slow-varying tangent directions.
+We approximate `v(x_t, t)` by reusing the last full evaluation while the local
+trajectory stays inside an `eps`-cone of the previous curvature estimate;
+two warmup full steps establish curvature before any skip is taken. See
+[`docs/SPEC_FAST_SAM3D.md`](SPEC_FAST_SAM3D.md) §2a for the derivation and
+[`meadow_wb/utils/cache.py`](../meadow_wb/utils/cache.py) for the implementation.
+
+Enable with `--slat-curvature-cache`; tune the cone half-angle via
+`--slat-curvature-eps` and warmup count via `--slat-curvature-warmup`.
+
+### Per-object speedup (M1 Max)
+
+Baseline = no flag; cached = flag on at the `eps` listed. Both runs use the
+same `--use-moge --use-shortcut --dtype mixed --prune-outliers` defaults and a
+fixed seed.
+
+| Object | eps | Baseline e2e | Cached e2e | Speedup | SLAT baseline | SLAT cached | Hit rate | Quality |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| chair | 1.5 | 78.1 s | 27.6 s | 2.83× | 62.4 s | 13.2 s | 84 % | all gates pass |
+| table | 0.5 | 85.4 s | 31.5 s | 2.71× | 70.1 s | 16.8 s | 76 % | all gates pass |
+| plush | 0.5 | 97.9 s | 32.3 s | 3.03× | 83.2 s | 17.4 s | 80 % | all gates pass |
+
+Quality gates (Phase 2 spec): Gaussian count within ±10 %, bbox per axis within
+±5 %, opacity mean within ±0.03, `|q|` exactly 1.0000. At `eps=1.5` chair clears
+all four; table and plush both miss opacity mean (Δ ≈ −0.05 and −0.07
+respectively) — both are recovered by dropping to `eps=0.5`, which still keeps
+hit rate at 76–80 % and end-to-end speedup at 2.7–3.0×.
+
+Chair was independently re-checked at `eps=0.5`: 77.3 → 30.1 s (2.57×),
+hit rate 76 %, all gates pass — so `eps=0.5` is the safe unified default across
+all three test objects.
+
+### Recommended hyperparameters
+
+- `--slat-curvature-eps 0.5` — passes quality gates on every test object,
+  including the textured plush. `eps=1.5` is faster on chair (2.83×) but breaks
+  opacity on table/plush, so we recommend tightening the default before any
+  user-facing flip.
+- `--slat-curvature-warmup 2` — leave at default; two unconditional full steps
+  are enough to establish curvature on this 25-step schedule.
+- The CLI defaults in `infer.py` still ship as `eps=1.5, warmup=2` and are
+  opt-in (flag must be set). Flipping the default to `eps=0.5` (or enabling the
+  cache by default) is a separate sprint.
+
+### Why the speedup exceeded the spec prediction
+
+`SPEC_FAST_SAM3D` §2a projected a ~2× SLAT-flow speedup from skipping the
+unconditional branch on cached steps. In practice SLAT runs at CFG=5, so each
+sampler step is *two* DiT forwards (cond + uncond), and a cache hit elides
+*both* — doubling the effective per-hit saving over the single-forward model in
+the spec. Combined with hit rates of 76–84 % across the 23 non-warmup steps,
+the realized SLAT-flow speedup is ~3.9–5.0× and the end-to-end speedup
+~2.6–3.0×, in line with what we observe.
+

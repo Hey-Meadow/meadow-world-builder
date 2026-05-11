@@ -188,7 +188,7 @@ Every flag is independent and ablation-friendly:
 | bf16 mixed precision | `--dtype mixed` | DiT blocks run in bf16 (matches PyTorch `autocast(bfloat16)`); ~1.4× DiT speedup |
 | MoGe in MLX | `--use-moge` | depth via MLX port of MoGe ViT-L, ~1.5 s |
 | Sparse Metal kernel | always on | hand-rolled Metal sparse attention for SLAT DiT blocks |
-| SLAT curvature cache | `--slat-curvature-cache` | tangent reuse on quasi-linear ODE segments; ~4.7× SLAT-flow speedup (Fast-SAM3D §2a) |
+| Curvature cache (Fast-SAM3D ②a) | `--slat-curvature-cache` | tangent-reuse on SLAT 25-step loop; ~2.8× end-to-end on M1 Max |
 
 See [`docs/MATH_OPTIMIZATION_OPPORTUNITIES.md`](docs/MATH_OPTIMIZATION_OPPORTUNITIES.md) for the remaining optimization backlog.
 
