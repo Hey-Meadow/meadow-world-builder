@@ -2,7 +2,7 @@
 
 Run with:
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        -m pytest meadow3d/tests/test_moge.py -v -s
+        -m pytest meadow_wb/tests/test_moge.py -v -s
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ sys.path.insert(0, _REPO_ROOT)
 
 @pytest.fixture(scope="module")
 def model():
-    from meadow3d.models.moge_mlx import MoGeModel
+    from meadow_wb.models.moge_mlx import MoGeModel
     return MoGeModel.from_pretrained()
 
 

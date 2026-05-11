@@ -3,14 +3,14 @@
 This is a USER tool that drives ``SAM3DObjectsPipeline`` over a list of
 ``(image, mask)`` pairs and produces aggregate timing / size / status stats.
 Works today against a stub pipeline so it can be tested before
-``meadow3d/models/pipeline_mlx.py`` (Agent OBJ-INTEG) is ready. When the
+``meadow_wb/models/pipeline_mlx.py`` (Agent OBJ-INTEG) is ready. When the
 real pipeline lands, swap the stub with the import and rerun.
 
 Usage
 -----
-    python meadow3d/scripts/eval_pipeline.py \\
+    python meadow_wb/scripts/eval_pipeline.py \\
         --image-dir notebook/images \\
-        --out-dir   meadow3d/_eval_out \\
+        --out-dir   meadow_wb/_eval_out \\
         --seeds     42,43 \\
         --max-cases 6 \\
         --pipeline  stub      # or 'real' when OBJ-INTEG is wired
@@ -43,14 +43,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-# Repo root on path so ``meadow3d.*`` imports resolve.
+# Repo root on path so ``meadow_wb.*`` imports resolve.
 _REPO = Path(__file__).resolve().parents[2]
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 
 # ---------------------------------------------------------------------------
-# Stub pipeline (interface mirrors meadow3d/docs/SPEC_INTEG.md).
+# Stub pipeline (interface mirrors meadow_wb/docs/SPEC_INTEG.md).
 # ---------------------------------------------------------------------------
 
 
@@ -149,16 +149,16 @@ def load_pipeline(kind: str, npz_dir: Optional[str]):
     """Return a pipeline instance with a uniform __call__(image, seed=...) API.
 
     ``kind`` in {"stub", "real"}. The "real" branch is a single-line swap
-    once ``meadow3d/models/pipeline_mlx.py`` is in place.
+    once ``meadow_wb/models/pipeline_mlx.py`` is in place.
     """
     if kind == "stub":
         return StubPipeline()
     if kind == "real":
         # Lazy import so missing deps don't break stub runs.
-        from meadow3d.models.pipeline_mlx import SAM3DObjectsPipeline  # type: ignore
+        from meadow_wb.models.pipeline_mlx import SAM3DObjectsPipeline  # type: ignore
 
         return SAM3DObjectsPipeline.from_npz_dir(
-            npz_dir or "meadow3d/weights/sam3d_objects/"
+            npz_dir or "meadow_wb/weights/sam3d_objects/"
         )
     raise ValueError(f"unknown pipeline kind: {kind!r}")
 
@@ -311,7 +311,7 @@ def run_case(
     if ply_bytes is None:
         # Fallback: try real save_gaussian_ply if gs_params look complete.
         try:
-            from meadow3d.models.decoder_mlx import save_gaussian_ply  # type: ignore
+            from meadow_wb.models.decoder_mlx import save_gaussian_ply  # type: ignore
 
             save_gaussian_ply(gs, str(ply_path))
             ply_bytes_count = ply_path.stat().st_size
@@ -449,7 +449,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--image-dir", type=Path, required=True,
                    help="Root dir to scan for image.png + numbered masks.")
-    p.add_argument("--out-dir", type=Path, default=Path("meadow3d/_eval_out"),
+    p.add_argument("--out-dir", type=Path, default=Path("meadow_wb/_eval_out"),
                    help="Where to write per-case dirs + eval_summary.{csv,json}.")
     p.add_argument("--seeds", type=str, default="42",
                    help="Comma-separated seed list, e.g. '42,43'.")

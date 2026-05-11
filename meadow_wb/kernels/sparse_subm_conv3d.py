@@ -31,8 +31,8 @@ Spconv weight layout convention: ``(KD, KH, KW, C_in, C_out)`` =
 
 References
 ----------
-- SPEC: ``meadow3d/docs/SPEC_METAL_SPARSE.md``
-- CUDA recon: ``meadow3d/docs/CUDA_DEPS.md``
+- SPEC: ``meadow_wb/docs/SPEC_METAL_SPARSE.md``
+- CUDA recon: ``meadow_wb/docs/CUDA_DEPS.md``
 - Source code: ``sam3d_objects/model/backbone/tdfy_dit/modules/sparse/conv/conv_spconv.py``
 """
 from __future__ import annotations

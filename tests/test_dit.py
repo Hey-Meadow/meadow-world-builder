@@ -9,7 +9,7 @@ Tests:
 
 Run::
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        meadow3d/tests/test_dit.py
+        meadow_wb/tests/test_dit.py
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from meadow3d.models.dit_mlx import (  # noqa: E402
+from meadow_wb.models.dit_mlx import (  # noqa: E402
     AdaLNModulation,
     DiTBackbone,
     DiTBlock,
@@ -43,7 +43,7 @@ from meadow3d.models.dit_mlx import (  # noqa: E402
 )
 
 
-WEIGHTS_DIR = os.path.join(ROOT, "meadow3d", "weights", "sam3d_objects")
+WEIGHTS_DIR = os.path.join(ROOT, "meadow_wb", "weights", "sam3d_objects")
 SLAT_NPZ = os.path.join(WEIGHTS_DIR, "slat_flow.npz")
 SS_NPZ = os.path.join(WEIGHTS_DIR, "ss_flow.npz")
 

@@ -52,17 +52,17 @@ import mlx.nn as nn
 import numpy as np
 from PIL import Image
 
-from meadow3d.kernels.sparse_subm_conv3d import clear_neighbor_cache
-from meadow3d.models.decoder_mlx import (
+from meadow_wb.kernels.sparse_subm_conv3d import clear_neighbor_cache
+from meadow_wb.models.decoder_mlx import (
     SLATDecoderGS,
     SSDecoder,
     save_gaussian_ply,
 )
-from meadow3d.models.dit_mlx import DiTBackbone, MOTDiTBackbone
-from meadow3d.models.embedders_mlx import ConditionEmbedder
-from meadow3d.models.latent_mapping_mlx import LatentMapping, OutputMapping
-from meadow3d.models.sampler_mlx import FlowMatching
-from meadow3d.models.sparse_blocks_mlx import (
+from meadow_wb.models.dit_mlx import DiTBackbone, MOTDiTBackbone
+from meadow_wb.models.embedders_mlx import ConditionEmbedder
+from meadow_wb.models.latent_mapping_mlx import LatentMapping, OutputMapping
+from meadow_wb.models.sampler_mlx import FlowMatching
+from meadow_wb.models.sparse_blocks_mlx import (
     SparseInputBlocks,
     SparseOutputBlocks,
 )
@@ -638,7 +638,7 @@ def make_moge_pointmap(
     else:
         # Fresh MoGe forward on the FULL original image (no pad / crop /
         # resize -- MoGe handles internal resize itself).
-        from meadow3d.models.moge_mlx import get_or_load_moge
+        from meadow_wb.models.moge_mlx import get_or_load_moge
 
         if moge_model is None:
             moge_model = get_or_load_moge()
@@ -784,7 +784,7 @@ class SAM3DObjectsPipeline:
     @classmethod
     def from_npz_dir(
         cls,
-        npz_dir: str = "meadow3d/weights/sam3d_objects",
+        npz_dir: str = "meadow_wb/weights/sam3d_objects",
         dtype: str = "mixed",
     ) -> "SAM3DObjectsPipeline":
         """Load pipeline from npz weights.

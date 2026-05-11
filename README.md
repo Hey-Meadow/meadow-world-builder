@@ -1,4 +1,4 @@
-# Meadow World Builder: Single-Image 3D Gaussian Splatting on Apple Silicon
+# Meadow - world builder: Single-Image 3D Gaussian Splatting on Apple Silicon
 
 An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image → 3D Gaussian Splatting reconstruction, runnable end-to-end on a single Apple Silicon Mac. No CUDA, no PyTorch at inference, no cloud GPU.
 
@@ -62,11 +62,11 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 - **~18× faster than the unoptimized M1 baseline.** Chair 1800 s → 86 s. Table 1800 s → 94 s. Plush 1800 s → 122 s. Mean ~100 s / object on M1 Max.
 - **Numerically validated.** Quaternion / scale / opacity distributions match the reference web-demo outputs within published tolerances ([`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md)).
 - **Streaming-friendly output.** Native `.ply` for SuperSplat and any standard 3DGS viewer, plus `.spz` (~7 MB) for web delivery.
-- **Reproducible.** One CLI entry point (`meadow3d/infer.py`), pinned weight-conversion script, ablation flags exposed end-to-end.
+- **Reproducible.** One CLI entry point (`meadow_wb/infer.py`), pinned weight-conversion script, ablation flags exposed end-to-end.
 
 ## Benchmark
 
-End-to-end wall-clock from `meadow3d/infer.py` on an Apple **M1 Max** (10-core CPU, 32-core GPU, 64 GB unified memory), Python 3.11.12, MLX 0.21:
+End-to-end wall-clock from `meadow_wb/infer.py` on an Apple **M1 Max** (10-core CPU, 32-core GPU, 64 GB unified memory), Python 3.11.12, MLX 0.21:
 
 | Object | Wall total | MoGe | SS DiT (4-step shortcut) | SLAT DiT (25-step CFG-5) | GS decode | Prune | Output |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -86,9 +86,9 @@ Mean **~100 s / object**. SLAT diffusion (25 CFG steps × 2 forward passes) acco
 
 ## Quality vs Reference Implementation
 
-We compared Meadow World Builder outputs against PLYs downloaded directly from the [official Meta SAM 3D Objects web demo](https://aidemos.meta.com/segment3d) on identical inputs.
+We compared Meadow - world builder outputs against PLYs downloaded directly from the [official Meta SAM 3D Objects web demo](https://aidemos.meta.com/segment3d) on identical inputs.
 
-| Metric | chair (Meadow World Builder vs ref) | table (Meadow World Builder vs ref) | plush (Meadow World Builder vs ref) |
+| Metric | chair (Meadow - world builder vs ref) | table (Meadow - world builder vs ref) | plush (Meadow - world builder vs ref) |
 |---|---|---|---|
 | Gaussian count | 63 624 / 68 076 (−7 %) | 64 000 / 64 380 (−0.6 %) | 64 000 / 51 340 (+25 %) |
 | Bounding box (x,y,z) | match within 12 % | match within 4 % | wider/looser cloud |
@@ -104,7 +104,7 @@ Requirements: **macOS 13.5+**, Apple Silicon (M1 / M2 / M3 / M4), **Python 3.11*
 
 ```bash
 git clone https://github.com/Hey-Meadow/meadow-world-builder
-cd meadow3d
+cd meadow_wb
 
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -130,9 +130,9 @@ huggingface-cli download facebook/sam-3d-objects --local-dir checkpoints/hf
 **Step 3. Convert PT → MLX**:
 
 ```bash
-python meadow3d/scripts/convert_weights.py \
+python meadow_wb/scripts/convert_weights.py \
     --ckpt-dir checkpoints/hf/checkpoints \
-    --out      meadow3d/weights/sam3d_objects
+    --out      meadow_wb/weights/sam3d_objects
 ```
 
 This produces:
@@ -148,12 +148,12 @@ Total ≈ **5.0 GB** on disk. Weights inherit the licence of their respective up
 
 ## Quickstart
 
-Prerequisite: [Pre-trained Checkpoints](#pre-trained-checkpoints) Step 1-3 completed (`meadow3d/weights/sam3d_objects/*.npz` populated).
+Prerequisite: [Pre-trained Checkpoints](#pre-trained-checkpoints) Step 1-3 completed (`meadow_wb/weights/sam3d_objects/*.npz` populated).
 
 Single image + mask in, `.ply` out:
 
 ```bash
-python meadow3d/infer.py \
+python meadow_wb/infer.py \
     --image path/to/image.png \
     --mask  path/to/mask.png \
     --use-moge --use-shortcut --dtype mixed --prune-outliers \
@@ -163,13 +163,13 @@ python meadow3d/infer.py \
 Or supply a pre-merged RGBA image:
 
 ```bash
-python meadow3d/infer.py --rgba combined.png --out outputs/my_object.ply
+python meadow_wb/infer.py --rgba combined.png --out outputs/my_object.ply
 ```
 
 Export web-ready compressed splat (`.spz`, ~7 MB):
 
 ```bash
-python meadow3d/infer.py \
+python meadow_wb/infer.py \
     --image image.png --mask mask.png \
     --format both --out outputs/my_object.ply
 # writes my_object.ply (4.3 MB) AND my_object.spz (~7 MB)
@@ -178,7 +178,7 @@ python meadow3d/infer.py \
 Render a 360° turntable GIF of any `.ply`:
 
 ```bash
-bash meadow3d/scripts/ql_gif_pipeline.sh outputs/my_object.ply preview.gif 36 320
+bash meadow_wb/scripts/ql_gif_pipeline.sh outputs/my_object.ply preview.gif 36 320
 ```
 
 ## Optimization Stack
@@ -221,7 +221,7 @@ Outlier Prune
 .ply  /  .spz
 ```
 
-Each stage is independently importable from `meadow3d/models/` — see [`docs/PORT_PLAN.md`](docs/PORT_PLAN.md) for the module map.
+Each stage is independently importable from `meadow_wb/models/` — see [`docs/PORT_PLAN.md`](docs/PORT_PLAN.md) for the module map.
 
 ## Status
 
@@ -261,11 +261,11 @@ End-to-end smoke test passing on M1 Max with mean **~100 s / object**.
 
 ## Relationship to SAM 3D Objects
 
-**Meadow World Builder is an independent third-party port. It is not affiliated with, endorsed by, or maintained by Meta.**
+**Meadow - world builder is an independent third-party port. It is not affiliated with, endorsed by, or maintained by Meta.**
 
-- The **architecture** (sparse-structure DiT, SLAT DiT, Gaussian decoder, MoGe backbone) is described in Meta's [SAM 3D Objects](https://ai.meta.com/research/publications/sam-3d-objects/) paper and other prior work (TRELLIS, MoGe). Meadow World Builder is a from-scratch MLX re-implementation of that architecture.
+- The **architecture** (sparse-structure DiT, SLAT DiT, Gaussian decoder, MoGe backbone) is described in Meta's [SAM 3D Objects](https://ai.meta.com/research/publications/sam-3d-objects/) paper and other prior work (TRELLIS, MoGe). Meadow - world builder is a from-scratch MLX re-implementation of that architecture.
 - The **model weights** are Meta's. This repository contains *no* model weights — users must download the official Meta release themselves and run the provided conversion script. Redistribution of Meta's weights is governed by Meta's licence terms; please consult the upstream release before redistributing converted weights.
-- The **MLX code, Metal kernels, port scripts, benchmarks, and documentation** in this repository are original work by the Meadow World Builder authors and are released under Apache 2.0.
+- The **MLX code, Metal kernels, port scripts, benchmarks, and documentation** in this repository are original work by the Meadow - world builder authors and are released under Apache 2.0.
 
 If you publish results obtained with this port, please cite both Meta's original work and this port (see [Citation](#citation)).
 
@@ -281,7 +281,7 @@ Built on top of:
 
 ## Citation
 
-If you use this port in your work, please cite both the original Meta paper and Meadow World Builder:
+If you use this port in your work, please cite both the original Meta paper and Meadow - world builder:
 
 ```bibtex
 @article{meta_sam3d_objects_2025,
@@ -292,7 +292,7 @@ If you use this port in your work, please cite both the original Meta paper and 
 }
 
 @misc{huang_meadow_2026,
-  title  = {Meadow World Builder: Single-Image 3D Gaussian Splatting on Apple Silicon},
+  title  = {Meadow - world builder: Single-Image 3D Gaussian Splatting on Apple Silicon},
   author = {Sheng-Kai Huang},
   year   = {2026},
   note   = {https://github.com/Hey-Meadow/meadow-world-builder}

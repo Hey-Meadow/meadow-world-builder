@@ -30,7 +30,7 @@ PT source files:
   - ``sam3d_objects/.../modules/sparse/attention/windowed_attn.py`` (swin attn)
   - ``sam3d_objects/.../representations/gaussian/gaussian_model.py`` (.ply)
 
-Weight conventions (set by ``meadow3d/weights/convert.py``):
+Weight conventions (set by ``meadow_wb/weights/convert.py``):
   - Conv3d weight: ``(out, kD, kH, kW, in)`` (MLX channels-last) — already
     pre-transposed in the npz.
   - Linear weight: ``(out, in)`` (matches both PT and MLX ``nn.Linear``).

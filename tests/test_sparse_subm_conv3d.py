@@ -3,7 +3,7 @@
 Run with:
 
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        /Users/akaihuangm1/Desktop/github/sam-3d-objects/meadow3d/tests/test_sparse_subm_conv3d.py
+        /Users/akaihuangm1/Desktop/github/sam-3d-objects/meadow_wb/tests/test_sparse_subm_conv3d.py
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ if _REPO not in sys.path:
 
 import mlx.core as mx  # noqa: E402
 
-from meadow3d.kernels.sparse_subm_conv3d import (  # noqa: E402
+from meadow_wb.kernels.sparse_subm_conv3d import (  # noqa: E402
     SparseSubmConv3d,
     build_neighbor_table,
     clear_neighbor_cache,

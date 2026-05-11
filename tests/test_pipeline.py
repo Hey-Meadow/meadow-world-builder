@@ -8,7 +8,7 @@ Runs the kidsroom test image + mask 14 through the full pipeline and verifies:
 Run with the SAM 3D Body venv:
 
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        -m pytest meadow3d/tests/test_pipeline.py -s
+        -m pytest meadow_wb/tests/test_pipeline.py -s
 """
 
 from __future__ import annotations
@@ -24,10 +24,10 @@ from PIL import Image
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from meadow3d.models.decoder_mlx import save_gaussian_ply  # noqa: E402
-from meadow3d.models.pipeline_mlx import SAM3DObjectsPipeline  # noqa: E402
+from meadow_wb.models.decoder_mlx import save_gaussian_ply  # noqa: E402
+from meadow_wb.models.pipeline_mlx import SAM3DObjectsPipeline  # noqa: E402
 
-NPZ_DIR = REPO_ROOT / "meadow3d" / "weights" / "sam3d_objects"
+NPZ_DIR = REPO_ROOT / "meadow_wb" / "weights" / "sam3d_objects"
 TEST_IMG = REPO_ROOT / "notebook" / "images" / "shutterstock_stylish_kidsroom_1640806567" / "image.png"
 TEST_MASK = REPO_ROOT / "notebook" / "images" / "shutterstock_stylish_kidsroom_1640806567" / "14.png"
 

@@ -6,7 +6,7 @@ Source modules (PyTorch, read-only):
   sam3d_objects/model/backbone/dit/embedder/embedder_fuser.py  -> EmbedderFuser
   sam3d_objects/model/backbone/tdfy_dit/models/timestep_embedder.py -> TimestepEmbedder
 
-Weight inspection (`meadow3d/weights/sam3d_objects/ss_embedder.npz`):
+Weight inspection (`meadow_wb/weights/sam3d_objects/ss_embedder.npz`):
   - module_list.0.backbone.* : DINOv2 ViT-L/14 + register tokens
         embed_dim=1024, depth=24, num_heads=16 (head_dim=64), patch_size=14,
         num_register_tokens=4, pos_embed=(1,1370,1024)  -> 1 cls + 37*37 patches
@@ -149,7 +149,7 @@ class _DinoBlock(nn.Module):
 
 class _DinoPatchEmbed(nn.Module):
     """Conv2d patch embed for DINO. PT (out, in, k, k) was already converted
-    to (out, k, k, in) by meadow3d/weights/convert.py. MLX nn.Conv2d expects
+    to (out, k, k, in) by meadow_wb/weights/convert.py. MLX nn.Conv2d expects
     weight shape (out, kH, kW, in_c) and channels-last input, so we use it
     directly.
     """

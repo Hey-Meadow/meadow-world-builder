@@ -1,8 +1,8 @@
 """ply_to_spz.py - Convert a 3DGS .ply (SAM 3D Objects output) to Niantic .spz.
 
 Usage:
-    python meadow3d/scripts/ply_to_spz.py splat.ply [--out splat.spz] [--sh-degree 0]
-    python meadow3d/scripts/ply_to_spz.py --check splat.spz   # roundtrip stats
+    python meadow_wb/scripts/ply_to_spz.py splat.ply [--out splat.spz] [--sh-degree 0]
+    python meadow_wb/scripts/ply_to_spz.py --check splat.spz   # roundtrip stats
 
 Approach (Option C in SPEC_SPZ_EXPORT.md):
     Use the `spz` PyPI package (Rust/PyO3 bindings around Niantic's reference

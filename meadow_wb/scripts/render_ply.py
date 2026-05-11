@@ -13,7 +13,7 @@ Outputs (next to the .ply, or in --out dir):
 Approach (Option B from SPEC_VIEWER.md)
 ---------------------------------------
 Pure-numpy / OpenCV anisotropic Gaussian splatter.
-Reads the PLY format written by ``meadow3d/models/decoder_mlx.save_gaussian_ply``
+Reads the PLY format written by ``meadow_wb/models/decoder_mlx.save_gaussian_ply``
 (17 float32 props/vertex: xyz, nx ny nz, f_dc_0..2, opacity, scale_0..2,
 rot_0..3) but also tolerates extra ``f_rest_*`` fields if a future writer
 adds them.

@@ -4,7 +4,7 @@ Wraps the community ``mlx_sam3`` package so callers can convert raw RGB
 images into RGBA (with alpha = SAM3 mask) without touching SAM3 internals.
 
 Usage:
-    from meadow3d.utils.auto_mask import auto_mask_image
+    from meadow_wb.utils.auto_mask import auto_mask_image
 
     rgba = auto_mask_image("photo.jpg", text_prompt="plush toy")
     # rgba: (H, W, 4) uint8 — pass directly to SAM3DObjectsPipeline

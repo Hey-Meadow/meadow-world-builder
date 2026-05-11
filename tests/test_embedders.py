@@ -1,4 +1,4 @@
-"""Smoke tests for `meadow3d.models.embedders_mlx`.
+"""Smoke tests for `meadow_wb.models.embedders_mlx`.
 
 Validates:
 1. ConditionEmbedder.from_npz() loads ss_embedder.npz and slat_embedder.npz.
@@ -7,7 +7,7 @@ Validates:
 
 Run:
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        -m pytest meadow3d/tests/test_embedders.py -s
+        -m pytest meadow_wb/tests/test_embedders.py -s
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from meadow3d.models.embedders_mlx import (  # noqa: E402
+from meadow_wb.models.embedders_mlx import (  # noqa: E402
     ConditionEmbedder,
     ImageEmbedder,
     PointPatchEmbedder,
@@ -31,8 +31,8 @@ from meadow3d.models.embedders_mlx import (  # noqa: E402
 )
 
 
-SS_NPZ = REPO_ROOT / "meadow3d" / "weights" / "sam3d_objects" / "ss_embedder.npz"
-SLAT_NPZ = REPO_ROOT / "meadow3d" / "weights" / "sam3d_objects" / "slat_embedder.npz"
+SS_NPZ = REPO_ROOT / "meadow_wb" / "weights" / "sam3d_objects" / "ss_embedder.npz"
+SLAT_NPZ = REPO_ROOT / "meadow_wb" / "weights" / "sam3d_objects" / "slat_embedder.npz"
 
 
 # ---------------------------------------------------------------------------

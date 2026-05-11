@@ -16,7 +16,7 @@ Verifies:
 
 Run::
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        meadow3d/tests/test_latent_share.py
+        meadow_wb/tests/test_latent_share.py
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from meadow3d.models.latent_mapping_mlx import LatentMapping  # noqa: E402
-from meadow3d.models.latent_share_mlx import (  # noqa: E402
+from meadow_wb.models.latent_mapping_mlx import LatentMapping  # noqa: E402
+from meadow_wb.models.latent_share_mlx import (  # noqa: E402
     SS_FLOW_MERGE_MAP,
     SS_FLOW_TOKEN_LENS,
     LatentShareTransformer,
@@ -41,7 +41,7 @@ from meadow3d.models.latent_share_mlx import (  # noqa: E402
 )
 
 
-WEIGHTS_DIR = os.path.join(ROOT, "meadow3d", "weights", "sam3d_objects")
+WEIGHTS_DIR = os.path.join(ROOT, "meadow_wb", "weights", "sam3d_objects")
 SS_NPZ = os.path.join(WEIGHTS_DIR, "ss_flow.npz")
 
 

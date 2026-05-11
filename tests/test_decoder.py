@@ -2,7 +2,7 @@
 
 Run:
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        -m meadow3d.tests.test_decoder
+        -m meadow_wb.tests.test_decoder
 
 Tests:
   T1. Random-input forward of SSDecoder (no weights). Checks input/output shape
@@ -28,7 +28,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from meadow3d.models.decoder_mlx import (
+from meadow_wb.models.decoder_mlx import (
     SSDecoder,
     SLATDecoderGS,
     save_gaussian_ply,
@@ -36,7 +36,7 @@ from meadow3d.models.decoder_mlx import (
 )
 
 
-WEIGHT_DIR = os.path.join(ROOT, "meadow3d", "weights", "sam3d_objects")
+WEIGHT_DIR = os.path.join(ROOT, "meadow_wb", "weights", "sam3d_objects")
 
 
 # ---------------------------------------------------------------------------

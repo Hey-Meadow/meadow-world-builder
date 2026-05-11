@@ -1,4 +1,4 @@
-"""Smoke + load tests for ``meadow3d.models.sparse_blocks_mlx``.
+"""Smoke + load tests for ``meadow_wb.models.sparse_blocks_mlx``.
 
 Exercises:
 
@@ -15,7 +15,7 @@ Exercises:
 Run with:
 
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        /Users/akaihuangm1/Desktop/github/sam-3d-objects/meadow3d/tests/test_sparse_blocks.py
+        /Users/akaihuangm1/Desktop/github/sam-3d-objects/meadow_wb/tests/test_sparse_blocks.py
 """
 from __future__ import annotations
 
@@ -31,11 +31,11 @@ if _REPO not in sys.path:
 
 import mlx.core as mx  # noqa: E402
 
-from meadow3d.kernels.sparse_subm_conv3d import (  # noqa: E402
+from meadow_wb.kernels.sparse_subm_conv3d import (  # noqa: E402
     _NEIGHBOR_CACHE,
     clear_neighbor_cache,
 )
-from meadow3d.models.sparse_blocks_mlx import (  # noqa: E402
+from meadow_wb.models.sparse_blocks_mlx import (  # noqa: E402
     SparseConvBlock,
     SparseInputBlocks,
     SparseOutputBlocks,
@@ -43,7 +43,7 @@ from meadow3d.models.sparse_blocks_mlx import (  # noqa: E402
 
 
 _NPZ = os.path.join(
-    _REPO, "meadow3d", "weights", "sam3d_objects", "slat_flow.npz"
+    _REPO, "meadow_wb", "weights", "sam3d_objects", "slat_flow.npz"
 )
 _PREFIX_INPUT = "reverse_fn.backbone.input_blocks."
 _PREFIX_OUT = "reverse_fn.backbone.out_blocks."

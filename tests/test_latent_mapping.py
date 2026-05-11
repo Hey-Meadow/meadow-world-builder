@@ -10,7 +10,7 @@ Tests:
 
 Run::
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        meadow3d/tests/test_latent_mapping.py
+        meadow_wb/tests/test_latent_mapping.py
 """
 
 from __future__ import annotations
@@ -26,14 +26,14 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from meadow3d.models.latent_mapping_mlx import (  # noqa: E402
+from meadow_wb.models.latent_mapping_mlx import (  # noqa: E402
     LatentMapping,
     OutputMapping,
     PositionalEmbedding,
 )
 
 
-WEIGHTS_DIR = os.path.join(ROOT, "meadow3d", "weights", "sam3d_objects")
+WEIGHTS_DIR = os.path.join(ROOT, "meadow_wb", "weights", "sam3d_objects")
 SS_NPZ = os.path.join(WEIGHTS_DIR, "ss_flow.npz")
 SLAT_NPZ = os.path.join(WEIGHTS_DIR, "slat_flow.npz")
 
@@ -191,7 +191,7 @@ def test_modality_routing_matches_dit() -> None:
     LatentMapping owns all 5 modalities (matches PT
     ``SparseStructureFlowTdfyWrapper.latent_mapping`` ModuleDict)."""
     _section("MOT modality routing: LatentMapping owns 5, DiT owns 2")
-    from meadow3d.models.dit_mlx import MOTDiTBackbone  # noqa: WPS433
+    from meadow_wb.models.dit_mlx import MOTDiTBackbone  # noqa: WPS433
 
     lm = LatentMapping.from_npz(SS_NPZ)
     assert set(lm.modality_names) == set(SS_EXPECTED.keys())

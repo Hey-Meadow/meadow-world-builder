@@ -54,7 +54,7 @@ exactly once per inference, not 50× per inference.
 
 Weight layout
 -------------
-The npz converter (``meadow3d/weights/convert.py``) ships SubMConv3d weights as
+The npz converter (``meadow_wb/weights/convert.py``) ships SubMConv3d weights as
 ``(C_out, KH, KW, C_in, KD)`` -- the result of ``transpose(0, 2, 3, 4, 1)`` on
 the PT-side state-dict shape ``(C_out, KD, KH, KW, C_in)``. To install into
 ``SparseSubmConv3d`` (which expects ``(KD, KH, KW, C_in, C_out)``) we apply
@@ -68,7 +68,7 @@ from typing import Dict, List, Optional, Tuple
 import mlx.core as mx
 import mlx.nn as nn
 
-from meadow3d.kernels.sparse_subm_conv3d import SparseSubmConv3d
+from meadow_wb.kernels.sparse_subm_conv3d import SparseSubmConv3d
 
 
 # ---------------------------------------------------------------------------

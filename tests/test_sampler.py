@@ -3,7 +3,7 @@
 Run with the SAM 3D Body venv::
 
     /Users/akaihuangm1/Desktop/github/sam-3d-body/.venv/bin/python \
-        meadow3d/tests/test_sampler.py
+        meadow_wb/tests/test_sampler.py
 """
 
 from __future__ import annotations
@@ -11,13 +11,13 @@ from __future__ import annotations
 import os
 import sys
 
-# Make the meadow3d package importable when run directly.
+# Make the meadow_wb package importable when run directly.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, _REPO_ROOT)
 
 import mlx.core as mx  # noqa: E402
 
-from meadow3d.models.sampler_mlx import CFGWrapper, FlowMatching  # noqa: E402
+from meadow_wb.models.sampler_mlx import CFGWrapper, FlowMatching  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

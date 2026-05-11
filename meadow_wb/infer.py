@@ -1,16 +1,16 @@
 """CLI entry: SAM 3D Objects MLX inference.
 
 Usage:
-    python meadow3d/infer_mlx.py \
+    python meadow_wb/infer_mlx.py \
         --image notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
         --mask notebook/images/shutterstock_stylish_kidsroom_1640806567/14.png \
         --seed 42 --out splat.ply
 
     # RGBA-merged input (mask in alpha channel):
-    python meadow3d/infer_mlx.py --rgba combined.png --seed 42 --out splat.ply
+    python meadow_wb/infer_mlx.py --rgba combined.png --seed 42 --out splat.ply
 
     # Also emit a Niantic .spz alongside the .ply (~5x smaller):
-    python meadow3d/infer_mlx.py --image X --mask Y --out splat.ply --format both
+    python meadow_wb/infer_mlx.py --image X --mask Y --out splat.ply --format both
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ from PIL import Image
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _REPO_ROOT)
 
-from meadow3d.models.decoder_mlx import save_gaussian_ply  # noqa: E402
-from meadow3d.models.pipeline_mlx import SAM3DObjectsPipeline  # noqa: E402
+from meadow_wb.models.decoder_mlx import save_gaussian_ply  # noqa: E402
+from meadow_wb.models.pipeline_mlx import SAM3DObjectsPipeline  # noqa: E402
 
 
 def load_rgba(image_path: str, mask_path: str | None = None) -> np.ndarray:
@@ -97,7 +97,7 @@ def main():
         help="SS shortcut step count (only used when --use-shortcut is set).",
     )
     ap.add_argument(
-        "--npz-dir", default="meadow3d/weights/sam3d_objects",
+        "--npz-dir", default="meadow_wb/weights/sam3d_objects",
         help="Directory containing the converted npz weights",
     )
     ap.add_argument(
@@ -152,7 +152,7 @@ def main():
     use_moge = not args.dummy_pointmap
 
     if args.auto_mask:
-        from meadow3d.utils.auto_mask import auto_mask_image
+        from meadow_wb.utils.auto_mask import auto_mask_image
         if args.image is None and args.rgba is None:
             ap.error("--auto-mask requires --image or --rgba (raw image to segment)")
             return
@@ -237,7 +237,7 @@ def main():
 
     if args.format in ("spz", "both"):
         # Lazy import so a missing `spz` package doesn't break --format ply.
-        from meadow3d.scripts.ply_to_spz import ply_to_spz  # noqa: E402
+        from meadow_wb.scripts.ply_to_spz import ply_to_spz  # noqa: E402
         spz_path = (
             out_path
             if out_path.endswith(".spz")
