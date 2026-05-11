@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Meadow Body Animation — skeleton / mesh / 3DGS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no" />
+<style>
+    body { margin: 0; background: #0a0a0e; color: #ddd; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; }
+    #canvas { display: block; width: 100vw; height: 100vh; }
+    #controls {
+        position: absolute; left: 16px; bottom: 16px; z-index: 10;
+        background: rgba(0,0,0,0.55); padding: 12px 16px; border-radius: 10px;
+        font-size: 13px; min-width: 280px;
+    }
+    #controls h3 { margin: 0 0 8px; font-size: 14px; color: #fff; }
+    .mode-buttons { display: flex; gap: 6px; margin-bottom: 10px; }
+    .mode-buttons button {
+        flex: 1; background: #1f1f24; color: #ccc; border: 1px solid #333;
+        padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    .mode-buttons button.active { background: #2c8aff; border-color: #58a8ff; color: white; }
+    .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .row label { min-width: 56px; opacity: 0.8; }
+    .row input[type=range] { flex: 1; }
+    #play-btn { width: 80px; padding: 6px 0; background: #2c8aff; color: white; border: 0; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    #play-btn.paused { background: #444; }
+    #frame-info { font-family: ui-monospace, monospace; font-size: 12px; opacity: 0.7; margin-left: 8px; }
+    #info { position: absolute; top: 14px; left: 16px; z-index: 10; font-size: 12px; opacity: 0.65; }
+    #info a { color: #58a8ff; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="info">
+    <b>Meadow body animation</b> · drag to orbit · scroll to zoom · 50 frames / 30 fps · skeleton from SAM 3D Body inference
+</div>
+
+<div id="controls">
+    <h3>Render mode</h3>
+    <div class="mode-buttons">
+        <button data-mode="skeleton" class="active">skeleton</button>
+        <button data-mode="mesh">mesh</button>
+        <button data-mode="gs">3DGS</button>
+    </div>
+    <div class="row">
+        <button id="play-btn">▶ play</button>
+        <span id="frame-info">0 / 49</span>
+    </div>
+    <div class="row">
+        <label>frame</label>
+        <input id="frame-slider" type="range" min="0" max="49" step="1" value="0"/>
+    </div>
+    <div class="row">
+        <label>speed</label>
+        <input id="speed-slider" type="range" min="0.1" max="3" step="0.1" value="1"/>
+    </div>
+</div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+// --- Three.js scene setup -------------------------------------------------
+const canvas = document.getElementById("canvas");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x0a0a0e);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 100);
+camera.position.set(0.8, 0.3, 2.4);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0, 0);
+controls.update();
+
+// Subtle ambient + directional light (mesh mode benefits)
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(1, 2, 1);
+scene.add(dirLight);
+
+// Floor grid
+const grid = new THREE.GridHelper(2, 20, 0x444466, 0x222236);
+grid.position.y = -1.0;
+scene.add(grid);
+
+// Axes at origin
+const axes = new THREE.AxesHelper(0.3);
+scene.add(axes);
+
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- Load animation data --------------------------------------------------
+const data = await fetch("animation.json").then(r => r.json());
+const { fps, n_frames, n_keypoints, frames, bones, bone_colors } = data;
+console.log(`loaded ${n_frames} frames, ${n_keypoints} keypoints, ${bones.length} bones`);
+
+function getFramePoints(idx) {
+    const flat = frames[idx];
+    const pts = new Float32Array(n_keypoints * 3);
+    for (let i = 0; i < n_keypoints * 3; i++) pts[i] = flat[i];
+    return pts;
+}
+
+// --- Mode 1: SKELETON (spheres + lines) ----------------------------------
+const skeletonGroup = new THREE.Group();
+{
+    const sphereGeo = new THREE.SphereGeometry(0.012, 12, 8);
+    const sphereMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, emissive: 0x222266, emissiveIntensity: 0.3 });
+    for (let i = 0; i < n_keypoints; i++) {
+        const s = new THREE.Mesh(sphereGeo, sphereMat);
+        skeletonGroup.add(s);
+    }
+    // Lines for bones (THREE.LineSegments — 2 verts per bone)
+    const lineGeo = new THREE.BufferGeometry();
+    const linePos = new Float32Array(bones.length * 2 * 3);
+    const lineCol = new Float32Array(bones.length * 2 * 3);
+    for (let b = 0; b < bones.length; b++) {
+        const [r, g, bb] = bone_colors[b];
+        for (let v = 0; v < 2; v++) {
+            lineCol[(b * 2 + v) * 3 + 0] = r / 255;
+            lineCol[(b * 2 + v) * 3 + 1] = g / 255;
+            lineCol[(b * 2 + v) * 3 + 2] = bb / 255;
+        }
+    }
+    lineGeo.setAttribute("position", new THREE.BufferAttribute(linePos, 3));
+    lineGeo.setAttribute("color", new THREE.BufferAttribute(lineCol, 3));
+    const lineMat = new THREE.LineBasicMaterial({ vertexColors: true, linewidth: 2 });
+    const lines = new THREE.LineSegments(lineGeo, lineMat);
+    skeletonGroup.add(lines);
+    skeletonGroup.userData = { spheres: skeletonGroup.children.slice(0, n_keypoints), lines };
+}
+scene.add(skeletonGroup);
+
+// --- Mode 2: MESH (capsules between bones) -------------------------------
+const meshGroup = new THREE.Group();
+meshGroup.visible = false;
+{
+    const capsuleMat = new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.55, metalness: 0.15 });
+    const capsules = [];
+    for (let b = 0; b < bones.length; b++) {
+        // Capsule oriented along Y; we'll set position+rotation per frame
+        const geo = new THREE.CapsuleGeometry(0.025, 0.1, 4, 8);
+        const m = new THREE.Mesh(geo, capsuleMat);
+        meshGroup.add(m);
+        capsules.push(m);
+    }
+    // Plus bigger spheres at joints for "head" + body landmarks
+    const jointSphereGeo = new THREE.SphereGeometry(0.05, 16, 12);
+    const jointSphereMat = new THREE.MeshStandardMaterial({ color: 0xffd9b0, roughness: 0.55, metalness: 0.15 });
+    const headIdx = data.keypoint_names.findIndex(n => n === "head" || n === "head_top");
+    for (let i = 0; i < n_keypoints; i++) {
+        const sz = (i === headIdx) ? 0.08 : 0.022;
+        const g = new THREE.SphereGeometry(sz, 14, 10);
+        const m = new THREE.Mesh(g, jointSphereMat);
+        meshGroup.add(m);
+    }
+    meshGroup.userData = { capsules, jointStart: bones.length };
+}
+scene.add(meshGroup);
+
+// --- Mode 3: 3DGS-style (glowy gaussian points) --------------------------
+const gsGroup = new THREE.Group();
+gsGroup.visible = false;
+{
+    // Use a radial-gradient texture on Three.Points → looks like gaussian splat
+    const tex = (() => {
+        const cv = document.createElement("canvas");
+        cv.width = cv.height = 64;
+        const ctx = cv.getContext("2d");
+        const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        g.addColorStop(0.0, "rgba(255,240,210,1)");
+        g.addColorStop(0.4, "rgba(255,200,170,0.6)");
+        g.addColorStop(1.0, "rgba(255,180,140,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 64, 64);
+        return new THREE.CanvasTexture(cv);
+    })();
+    const ptsGeo = new THREE.BufferGeometry();
+    ptsGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n_keypoints * 3), 3));
+    const ptsMat = new THREE.PointsMaterial({
+        map: tex,
+        size: 0.18,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true,
+    });
+    const pts = new THREE.Points(ptsGeo, ptsMat);
+    gsGroup.add(pts);
+    gsGroup.userData = { pts };
+}
+scene.add(gsGroup);
+
+// --- Per-frame update -----------------------------------------------------
+function updateFrame(idx) {
+    const pts = getFramePoints(idx);
+
+    // Skeleton: move spheres, update line positions
+    if (skeletonGroup.visible) {
+        for (let i = 0; i < n_keypoints; i++) {
+            skeletonGroup.userData.spheres[i].position.set(pts[i*3], pts[i*3+1], pts[i*3+2]);
+        }
+        const linePos = skeletonGroup.userData.lines.geometry.attributes.position.array;
+        for (let b = 0; b < bones.length; b++) {
+            const [a, c] = bones[b];
+            linePos[(b * 2 + 0) * 3 + 0] = pts[a*3];
+            linePos[(b * 2 + 0) * 3 + 1] = pts[a*3+1];
+            linePos[(b * 2 + 0) * 3 + 2] = pts[a*3+2];
+            linePos[(b * 2 + 1) * 3 + 0] = pts[c*3];
+            linePos[(b * 2 + 1) * 3 + 1] = pts[c*3+1];
+            linePos[(b * 2 + 1) * 3 + 2] = pts[c*3+2];
+        }
+        skeletonGroup.userData.lines.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // Mesh: capsule between each bone pair, joint spheres at each kp
+    if (meshGroup.visible) {
+        const tmp = new THREE.Vector3();
+        const tmp2 = new THREE.Vector3();
+        const tmp3 = new THREE.Vector3();
+        const upY = new THREE.Vector3(0, 1, 0);
+        for (let b = 0; b < bones.length; b++) {
+            const [a, c] = bones[b];
+            tmp.set(pts[a*3], pts[a*3+1], pts[a*3+2]);
+            tmp2.set(pts[c*3], pts[c*3+1], pts[c*3+2]);
+            tmp3.subVectors(tmp2, tmp);
+            const len = tmp3.length();
+            const cap = meshGroup.userData.capsules[b];
+            cap.position.copy(tmp).add(tmp2).multiplyScalar(0.5);
+            // CapsuleGeometry built with length=0.1 along Y; scale to actual length
+            cap.scale.set(1, len / 0.1, 1);
+            cap.quaternion.setFromUnitVectors(upY, tmp3.clone().normalize());
+        }
+        const jointStart = meshGroup.userData.jointStart;
+        for (let i = 0; i < n_keypoints; i++) {
+            meshGroup.children[jointStart + i].position.set(pts[i*3], pts[i*3+1], pts[i*3+2]);
+        }
+    }
+
+    // 3DGS-style: just move points
+    if (gsGroup.visible) {
+        const p = gsGroup.userData.pts.geometry.attributes.position.array;
+        for (let i = 0; i < n_keypoints * 3; i++) p[i] = pts[i];
+        gsGroup.userData.pts.geometry.attributes.position.needsUpdate = true;
+    }
+}
+
+// --- UI controls ----------------------------------------------------------
+let currentFrame = 0;
+let playing = false;
+let speed = 1.0;
+let lastT = performance.now();
+
+const slider = document.getElementById("frame-slider");
+const speedSlider = document.getElementById("speed-slider");
+const playBtn = document.getElementById("play-btn");
+const info = document.getElementById("frame-info");
+
+slider.max = n_frames - 1;
+
+slider.addEventListener("input", () => {
+    currentFrame = parseInt(slider.value, 10);
+    updateFrame(currentFrame);
+    info.textContent = `${currentFrame} / ${n_frames - 1}`;
+});
+
+speedSlider.addEventListener("input", () => { speed = parseFloat(speedSlider.value); });
+
+function setPlaying(p) {
+    playing = p;
+    playBtn.textContent = playing ? "⏸ pause" : "▶ play";
+    playBtn.classList.toggle("paused", !playing);
+    lastT = performance.now();
+}
+playBtn.addEventListener("click", () => setPlaying(!playing));
+
+document.querySelectorAll(".mode-buttons button").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".mode-buttons button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const mode = btn.dataset.mode;
+        skeletonGroup.visible = (mode === "skeleton");
+        meshGroup.visible = (mode === "mesh");
+        gsGroup.visible = (mode === "gs");
+        updateFrame(currentFrame);
+    });
+});
+
+// --- Render loop ----------------------------------------------------------
+function tick() {
+    if (playing) {
+        const now = performance.now();
+        const elapsed = (now - lastT) / 1000;
+        const dFrames = elapsed * fps * speed;
+        if (dFrames >= 1) {
+            currentFrame = (currentFrame + Math.floor(dFrames)) % n_frames;
+            slider.value = currentFrame;
+            info.textContent = `${currentFrame} / ${n_frames - 1}`;
+            lastT = now;
+        }
+    }
+    updateFrame(currentFrame);
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+}
+
+updateFrame(0);
+setPlaying(true);  // autoplay on load
+tick();
+</script>
+</body>
+</html>
