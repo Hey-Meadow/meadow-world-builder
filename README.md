@@ -167,7 +167,19 @@ Total ≈ **11.5 GB** on disk. Weights remain subject to their upstream licence 
 
 Prerequisite: weights downloaded per [Pre-trained Checkpoints](#pre-trained-checkpoints) above (`meadow_wb/weights/sam3d_objects/*.npz` populated).
 
-Single image + mask in, `.ply` out:
+A bundled sample (Pexels-licensed cat photo + auto-generated mask) is shipped at `assets/sample/` so you can verify the install in one command:
+
+```bash
+python meadow_wb/infer.py \
+    --image assets/sample/cat.jpg \
+    --mask  assets/sample/cat_mask.png \
+    --use-moge --use-shortcut --dtype mixed --prune-outliers \
+    --out outputs/cat.ply
+```
+
+Expected wall time on M1 Max (v0.0.2 defaults): ~40 s; output `.ply` opens directly in [SuperSplat](https://superspl.at).
+
+For your own input — single image + mask in, `.ply` out:
 
 ```bash
 python meadow_wb/infer.py \
