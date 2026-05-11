@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.DS_Store
+
+meadow3d/weights/*.npz
+meadow3d/weights/*.safetensors
+outputs/
+*.ply
+*.spz
+!assets/demos/*.ply
+
+debug/
+_eval_out/
+_eval_fail_test/
