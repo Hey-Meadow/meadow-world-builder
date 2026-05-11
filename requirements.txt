@@ -7,3 +7,7 @@ tqdm>=4.66
 einops>=0.7
 safetensors>=0.4
 plyfile>=1.0
+
+# Required by meadow3d/scripts/convert_weights.py (one-time Meta .ckpt → MLX .npz)
+torch>=2.1
+huggingface_hub>=0.20

@@ -6,6 +6,7 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 [![MLX](https://img.shields.io/badge/MLX-0.21+-orange.svg)](https://github.com/ml-explore/mlx)
 [![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-M1%2FM2%2FM3%2FM4-black.svg)](https://www.apple.com/mac/)
 [![M1 Max](https://img.shields.io/badge/M1_Max-~100_s%2Fobj_(18×)-success.svg)](docs/FINAL_BENCHMARK.md)
+[![Status](https://img.shields.io/badge/status-v0.0.1_alpha-yellow.svg)](#status)
 
 <table>
   <tr>
@@ -115,12 +116,23 @@ pip install -e .
 
 ## Pre-trained Checkpoints
 
-Weights are **not bundled with this repo** — they must be downloaded from Meta's official release and one-time converted to MLX format. See [`docs/CHECKPOINT_REPORT.md`](docs/CHECKPOINT_REPORT.md) for the exact source URLs and conversion procedure.
+Weights are **not bundled with this repo** — Meta's SAM 3D Objects checkpoints are gated on HuggingFace and the SAM License does not let us redistribute them. The user must (1) accept Meta's licence, (2) download the original `.ckpt` files, and (3) run our one-time conversion to MLX `.npz`.
+
+**Step 1. Request access** at [huggingface.co/facebook/sam-3d-objects](https://huggingface.co/facebook/sam-3d-objects) and accept the SAM License (typically approved within hours).
+
+**Step 2. Download** the gated repo (~12 GB):
+
+```bash
+huggingface-cli login   # one-time, paste your HF token
+huggingface-cli download facebook/sam-3d-objects --local-dir checkpoints/hf
+```
+
+**Step 3. Convert PT → MLX**:
 
 ```bash
 python meadow3d/scripts/convert_weights.py \
-    --pt-dir path/to/meta_release/ \
-    --out-dir meadow3d/weights/
+    --ckpt-dir checkpoints/hf/checkpoints \
+    --out      meadow3d/weights/sam3d_objects
 ```
 
 This produces:
@@ -135,6 +147,8 @@ This produces:
 Total ≈ **5.0 GB** on disk. Weights inherit the licence of their respective upstream sources — see [Relationship to SAM 3D Objects](#relationship-to-sam-3d-objects) below.
 
 ## Quickstart
+
+Prerequisite: [Pre-trained Checkpoints](#pre-trained-checkpoints) Step 1-3 completed (`meadow3d/weights/sam3d_objects/*.npz` populated).
 
 Single image + mask in, `.ply` out:
 
@@ -208,6 +222,25 @@ Outlier Prune
 ```
 
 Each stage is independently importable from `meadow3d/models/` — see [`docs/PORT_PLAN.md`](docs/PORT_PLAN.md) for the module map.
+
+## Status
+
+**v0.0.1 (alpha, May 2026)** — first public release.
+
+| Component | State | Notes |
+|---|---|---|
+| Inference pipeline (MoGe + SS DiT + SLAT DiT + GS decoder) | ✅ verified | smoke-tested on chair / table / plush against Meta web-demo PLYs |
+| Weight-conversion script (`convert_weights.py`) | ✅ verified | requires gated HF access to `facebook/sam-3d-objects` |
+| Custom Metal sparse attention kernel | ✅ verified | bundled, used by SLAT DiT |
+| `--use-shortcut` (4-step SS sampler) | ✅ verified | default-on |
+| `--auto-mask` (SAM-2 prompt fallback) | ⚠️ stubbed | use `--mask` for now |
+| Fast-SAM3D port (curvature caching + token carving) | 🚧 in progress | scaffold landed; not wired into sampler yet |
+| SLAT shortcut distillation | ⬜ roadmap | needs H100 training |
+| `gs_8` decoder | ⬜ roadmap | currently only `gs_4` |
+
+End-to-end smoke test passing on M1 Max with mean **~100 s / object**.
+
+---
 
 ## Limitations
 

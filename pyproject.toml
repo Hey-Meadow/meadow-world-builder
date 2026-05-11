@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meadow-world-builder"
-version = "0.1.0"
+version = "0.0.1"
 description = "Meadow World Builder: single-image 3D Gaussian Splatting on Apple Silicon (MLX)"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -20,6 +20,8 @@ dependencies = [
     "einops>=0.7",
     "safetensors>=0.4",
     "plyfile>=1.0",
+    "torch>=2.1",
+    "huggingface_hub>=0.20",
 ]
 
 [tool.setuptools.packages.find]
