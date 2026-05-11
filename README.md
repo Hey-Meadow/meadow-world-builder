@@ -5,8 +5,8 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![MLX](https://img.shields.io/badge/MLX-0.21+-orange.svg)](https://github.com/ml-explore/mlx)
 [![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-M1%2FM2%2FM3%2FM4-black.svg)](https://www.apple.com/mac/)
-[![M1 Max](https://img.shields.io/badge/M1_Max-~100_s%2Fobj_(18×)-success.svg)](docs/FINAL_BENCHMARK.md)
-[![Status](https://img.shields.io/badge/status-v0.0.1_alpha-yellow.svg)](#status)
+[![M1 Max](https://img.shields.io/badge/M1_Max-~31_s%2Fobj_(57×)-success.svg)](docs/FINAL_BENCHMARK.md)
+[![Status](https://img.shields.io/badge/status-v0.0.2_alpha-yellow.svg)](#status)
 
 <table>
   <tr>
@@ -32,7 +32,7 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
   </tr>
 </table>
 
-<sub>All 15 objects above were reconstructed from a single RGB image + mask on an Apple M1 Max, ~100 s end-to-end each. Frames are rendered via macOS Quick Look on the exported `.ply` files (also shipped in <a href="assets/demos">assets/demos</a>).</sub>
+<sub>All 15 objects above were reconstructed from a single RGB image + mask on an Apple M1 Max, ~31 s end-to-end each (v0.0.2 default, curvature-cache on). Frames are rendered via macOS Quick Look on the exported `.ply` files (also shipped in <a href="assets/demos">assets/demos</a>).</sub>
 
 > **TL;DR.** Server-grade single-image 3D Gaussian Splatting reconstruction, distilled into a sub-2-minute pipeline on Apple Silicon. MoGe depth → Sparse-Structure DiT → SLAT DiT → Gaussian decoder, end-to-end in pure MLX, with shortcut distillation, bf16 mixed precision, custom Metal sparse-attention kernels, and decoder slimming. Brings 3DGS reconstruction from "needs an A100" to "runs on your laptop while you keep working".
 
@@ -58,30 +58,33 @@ An [MLX](https://github.com/ml-explore/mlx) re-implementation of single-image �
 ## Highlights
 
 - **Single-Mac inference.** Full pipeline in pure MLX on Apple Silicon. No CUDA, no `torch` at inference, no Docker.
-- **~18× faster than the unoptimized M1 baseline.** Chair 1800 s → 86 s. Table 1800 s → 94 s. Plush 1800 s → 122 s. Mean ~100 s / object on M1 Max.
+- **~57× faster than the unoptimized M1 baseline.** Chair 1800 s → 30 s. Table 1800 s → 32 s. Plush 1800 s → 32 s. Mean ~**31 s / object** on M1 Max.
+- **Curvature-cache speedup** (Fast-SAM3D ②a) — on by default at `--slat-curvature-eps 0.5`, ~2.77× e2e vs no cache, quality-validated across chair / table / plush.
 - **Numerically validated.** Quaternion / scale / opacity distributions match the published-reference tolerances ([`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md)).
 - **Streaming-friendly output.** Native `.ply` for SuperSplat and any standard 3DGS viewer, plus `.spz` (~7 MB) for web delivery.
-- **Reproducible.** One CLI entry point (`meadow_wb/infer.py`), pinned weight-conversion script, ablation flags exposed end-to-end.
+- **Reproducible.** One CLI entry point (`meadow_wb/infer.py`), pretrained weights on HuggingFace, ablation flags exposed end-to-end.
 
 ## Benchmark
 
-End-to-end wall-clock from `meadow_wb/infer.py` on an Apple **M1 Max** (10-core CPU, 32-core GPU, 64 GB unified memory), Python 3.11.12, MLX 0.21:
+End-to-end wall-clock from `meadow_wb/infer.py` with v0.0.2 defaults (curvature cache on, eps=0.5) on an Apple **M1 Max** (10-core CPU, 32-core GPU, 64 GB unified memory), Python 3.11.12, MLX 0.21:
 
-| Object | Wall total | MoGe | SS DiT (4-step shortcut) | SLAT DiT (25-step CFG-5) | GS decode | Prune | Output |
+| Object | Wall total | MoGe | SS DiT | SLAT DiT (curv-cache) | GS decode | Prune | Output |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| chair |  **86 s** | 1.53 s |  7.76 s |  71.77 s | 0.78 s | 0.05 s | 63 624 Gaussians |
-| table |  **94 s** | 1.56 s |  8.72 s |  79.00 s | 0.83 s | 0.07 s | 64 000 Gaussians |
-| plush | **122 s** | 1.64 s | 10.25 s | 104.81 s | 1.08 s | 0.05 s | 64 000 Gaussians |
+| chair | **30.1 s** | 1.74 s |  7.72 s | 13.2 s (76% hits) | 0.79 s | 0.05 s | 63 624 Gaussians |
+| table | **31.5 s** | 1.56 s |  8.72 s | 16.8 s (76% hits) | 0.83 s | 0.07 s | 64 000 Gaussians |
+| plush | **32.3 s** | 1.64 s | 10.25 s | 17.4 s (80% hits) | 1.08 s | 0.05 s | 64 000 Gaussians |
 
-Mean **~100 s / object**. SLAT diffusion (25 CFG steps × 2 forward passes) accounts for **80–86 %** of wall time and is the next obvious optimization target — a SLAT shortcut at the SS shortcut's quality would project end-to-end to ~25–35 s.
+Mean **~31 s / object**. To opt out of the curvature cache (full 25-step SLAT loop), pass `--no-slat-curvature-cache`.
 
-### Speedup vs unoptimized M1 Max baseline
+### Speedup vs M1 Max baselines
 
-| Object | Baseline (no shortcut, fp32, no Metal kernel) | This port | Speedup |
-|---|---:|---:|---:|
-| chair | 1800 s | 86 s  | **20.9×** |
-| table | 1800 s | 94 s  | **19.1×** |
-| plush | 1800 s | 122 s | **14.7×** |
+| Object | unoptimized (fp32, no Metal, no cache) | classic MLX (v0.0.1, no cache) | **v0.0.2 (default)** | unopt → v0.0.2 |
+|---|---:|---:|---:|---:|
+| chair | 1800 s | 78.1 s | 30.1 s | **59.8×** |
+| table | 1800 s | 85.4 s | 31.5 s | **57.1×** |
+| plush | 1800 s | 97.9 s | 32.3 s | **55.7×** |
+
+Full per-stage and ablation breakdown: [`docs/FINAL_BENCHMARK.md`](docs/FINAL_BENCHMARK.md) §6.
 
 ## Output Quality
 

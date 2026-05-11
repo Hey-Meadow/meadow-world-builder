@@ -148,17 +148,26 @@ def main():
         help="Voxels with fewer neighbors (incl. self) within radius are pruned.",
     )
     # ---- Fast-SAM3D mechanism 2a: curvature-aware tangent reuse (SLAT) -----
-    # See docs/SPEC_FAST_SAM3D.md section 2. Off by default; opt-in via flag.
-    ap.add_argument(
-        "--slat-curvature-cache", action="store_true",
+    # See docs/SPEC_FAST_SAM3D.md section 2. On by default at eps=0.5
+    # (validated across chair/table/plush, ~2.77x mean speedup).
+    cc_grp = ap.add_mutually_exclusive_group()
+    cc_grp.add_argument(
+        "--slat-curvature-cache", dest="slat_curvature_cache",
+        action="store_true", default=True,
         help="Enable curvature-aware tangent reuse inside the SLAT sampler "
              "(Fast-SAM3D mechanism 2a). Skips backbone evals when the "
-             "trajectory is quasi-linear.",
+             "trajectory is quasi-linear. (default: on)",
+    )
+    cc_grp.add_argument(
+        "--no-slat-curvature-cache", dest="slat_curvature_cache",
+        action="store_false",
+        help="Disable curvature-aware tangent reuse (run all 25 SLAT steps).",
     )
     ap.add_argument(
-        "--slat-curvature-eps", type=float, default=1.5,
+        "--slat-curvature-eps", type=float, default=0.5,
         help="Accumulated relative-error threshold that forces an anchor "
-             "refresh. Lower = stricter quality, fewer cache hits.",
+             "refresh. Lower = stricter quality, fewer cache hits. "
+             "(default: 0.5)",
     )
     ap.add_argument(
         "--slat-curvature-warmup", type=int, default=2,
