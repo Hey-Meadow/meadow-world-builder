@@ -307,7 +307,8 @@ other
 		</div>
 		<script>
 			(function () {
-				window.iriState = window.iriState || { strength: 0.85, metallicMix: 0.95, freq: 4.0, animate: 1.0, sceneCenter: [0,0,0], t0: performance.now() };
+				const _defaults = { strength: 0.85, metallicMix: 0.95, freq: 4.0, animate: 1.0, rippleAmp: 0.0, rippleFreq: 8.0, rippleSpeed: 3.0, sceneCenter: [0,0,0], t0: performance.now() };
+				window.iriState = Object.assign(_defaults, window.iriState || {});
 				const bind = (id, key, fmt = v => v.toFixed(2)) => {
 					const el = document.getElementById(id);
 					const vl = document.getElementById(id + "-v");

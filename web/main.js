@@ -986,7 +986,8 @@ async function main() {
     const u_ripple_freq   = gl.getUniformLocation(program, "u_ripple_freq");
     const u_ripple_speed  = gl.getUniformLocation(program, "u_ripple_speed");
     // Defaults (also overridable via UI sliders in index.html).
-    window.iriState = window.iriState || {
+    // Merge defaults — index.html may have already partially initialised state.
+    const _iriDefaults = {
         strength: 0.85,
         freq: 4.0,
         metallicMix: 0.95,
@@ -997,6 +998,7 @@ async function main() {
         sceneCenter: [0, 0, 0],
         t0: performance.now(),
     };
+    window.iriState = Object.assign(_iriDefaults, window.iriState || {});
 
     // positions
     const triangleVertices = new Float32Array([-2, -2, 2, -2, 2, 2, -2, 2]);
