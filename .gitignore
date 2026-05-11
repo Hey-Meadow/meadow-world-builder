@@ -10,6 +10,7 @@ dist/
 meadow3d/weights/*.npz
 meadow3d/weights/*.safetensors
 meadow_wb/weights/
+meadow_sb/weights/
 outputs/
 *.ply
 *.spz
