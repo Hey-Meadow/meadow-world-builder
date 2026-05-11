@@ -792,7 +792,9 @@ let defaultViewMatrix = [
 ];
 let viewMatrix = defaultViewMatrix;
 async function main() {
-    let carousel = true;
+    // Meadow default: disable auto-tour camera drift; user controls camera explicitly.
+    // Press `p` in-viewer to re-enable carousel.
+    let carousel = false;
     const params = new URLSearchParams(location.search);
     try {
         viewMatrix = JSON.parse(decodeURIComponent(location.hash.slice(1)));
