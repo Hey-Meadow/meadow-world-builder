@@ -350,15 +350,22 @@ function createWorker(self) {
         const f_buffer = new Float32Array(buffer);
         const u_buffer = new Uint8Array(buffer);
 
-        // Meadow: compute scene centroid for iridescent pseudo-normal.
+        // Meadow: compute scene centroid (for shader) + radius (for default camera).
         let cx = 0, cy = 0, cz = 0;
+        let xmin = +Infinity, ymin = +Infinity, zmin = +Infinity;
+        let xmax = -Infinity, ymax = -Infinity, zmax = -Infinity;
         for (let i = 0; i < vertexCount; i++) {
-            cx += f_buffer[8 * i + 0];
-            cy += f_buffer[8 * i + 1];
-            cz += f_buffer[8 * i + 2];
+            const x = f_buffer[8 * i + 0];
+            const y = f_buffer[8 * i + 1];
+            const z = f_buffer[8 * i + 2];
+            cx += x; cy += y; cz += z;
+            if (x < xmin) xmin = x; if (x > xmax) xmax = x;
+            if (y < ymin) ymin = y; if (y > ymax) ymax = y;
+            if (z < zmin) zmin = z; if (z > zmax) zmax = z;
         }
         cx /= vertexCount; cy /= vertexCount; cz /= vertexCount;
-        self.postMessage({ sceneCenter: [cx, cy, cz] });
+        const radius = Math.max(xmax - xmin, ymax - ymin, zmax - zmin) * 0.5;
+        self.postMessage({ sceneCenter: [cx, cy, cz], sceneRadius: radius });
 
         var texwidth = 1024 * 2; // Set to your desired width
         var texheight = Math.ceil((2 * vertexCount) / texwidth); // Set to your desired height
@@ -935,6 +942,15 @@ async function main() {
     worker.onmessage = (e) => {
         if (e.data.sceneCenter) {
             window.iriState.sceneCenter = e.data.sceneCenter;
+            // Rebuild a fitted default view matrix: camera 2.5x radius back along +Z, looking at scene centre.
+            const [cx, cy, cz] = e.data.sceneCenter;
+            const r = e.data.sceneRadius || 1.0;
+            const dist = 2.6 * r;
+            // Column-major 4x4: identity rotation, translation = -sceneCenter then -d on z.
+            const m = [1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,
+                       -cx, -cy, -cz - dist, 1];
+            defaultViewMatrix.splice(0, 16, ...m);
+            viewMatrix = m.slice();
             return;
         }
         if (e.data.buffer) {
