@@ -18,3 +18,7 @@ outputs/
 debug/
 _eval_out/
 _eval_fail_test/
+
+# YoNoSplat port research — heavy weights (downloaded on demand)
+research/yonosplat_bootstrap/weights/
+research/yonosplat_bootstrap/dumps/
