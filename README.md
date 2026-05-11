@@ -258,7 +258,7 @@ If you use this port in your work, please cite both the original Meta paper and 
   note   = {https://ai.meta.com/research/publications/sam-3d-objects/}
 }
 
-@misc{huang_meadow3d_2026,
+@misc{huang_meadow_2026,
   title  = {Meadow World Builder: Single-Image 3D Gaussian Splatting on Apple Silicon},
   author = {Sheng-Kai Huang},
   year   = {2026},
