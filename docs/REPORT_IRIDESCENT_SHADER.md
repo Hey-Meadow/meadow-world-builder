@@ -2,7 +2,14 @@
 
 Branch: `feature/iridescent-shader`
 Scripts: `meadow_wb/scripts/apply_iridescent.py`, `meadow_wb/scripts/render_iridescent_gif.py`
+Live WebGL viewer: `web/`
 Reference look: liquid-metal / thin-film chrome animation (silver base with rainbow bands on highlight regions)
+
+### Live WebGL viewer demo (screen recording, 16 s)
+
+<img src="../assets/iridescent_test/web_viewer_demo.gif" width="600"/>
+
+Real-time chrome / candy / dream blur / water ripple shader on Oatchi, controlled via the on-screen sliders. Source in [`web/`](../web).
 
 ## What works
 
