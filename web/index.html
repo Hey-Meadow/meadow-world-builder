@@ -195,6 +195,8 @@
 				width: 100%;
 				height: 100%;
 				touch-action: none;
+				filter: blur(2.5px) saturate(1.15) brightness(1.05);
+				transition: filter 0.12s linear;
 			}
 
 			#instructions {
@@ -296,6 +298,7 @@ other
 			<label>strength <input id="iri-strength" type="range" min="0" max="1" step="0.01" value="0.85"/><span class="val" id="iri-strength-v">0.85</span></label>
 			<label>chrome ↔ candy <input id="iri-mix" type="range" min="0" max="1" step="0.01" value="0.95"/><span class="val" id="iri-mix-v">0.95</span></label>
 			<label>hue freq <input id="iri-freq" type="range" min="0.5" max="12" step="0.1" value="4"/><span class="val" id="iri-freq-v">4.0</span></label>
+			<label>dream blur <input id="iri-blur" type="range" min="0" max="10" step="0.1" value="2.5"/><span class="val" id="iri-blur-v">2.5</span></label>
 			<label>animate <input id="iri-animate" type="checkbox" checked/></label>
 		</div>
 		<script>
@@ -314,6 +317,15 @@ other
 				bind("iri-strength", "strength");
 				bind("iri-mix", "metallicMix");
 				bind("iri-freq", "freq", v => v.toFixed(1));
+				const blurEl = document.getElementById("iri-blur");
+				const blurVl = document.getElementById("iri-blur-v");
+				const applyBlur = () => {
+					const v = parseFloat(blurEl.value);
+					const c = document.getElementById("canvas");
+					if (c) c.style.filter = `blur(${v}px) saturate(1.15) brightness(1.05)`;
+					if (blurVl) blurVl.textContent = v.toFixed(1);
+				};
+				if (blurEl) blurEl.addEventListener("input", applyBlur);
 				const anim = document.getElementById("iri-animate");
 				if (anim) anim.addEventListener("change", () => {
 					window.iriState.animate = anim.checked ? 1.0 : 0.0;
