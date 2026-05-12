@@ -102,6 +102,36 @@ def _quat_xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
     return q[..., [3, 0, 1, 2]]
 
 
+def _flip_yz_xyz(xyz: np.ndarray) -> np.ndarray:
+    """OpenCV (+Y down, +Z forward) → OpenGL/SuperSplat (+Y up, -Z forward).
+
+    Composed as a 180° rotation around the X axis: diag(1, -1, -1).
+    """
+    out = xyz.copy()
+    out[:, 1] = -xyz[:, 1]
+    out[:, 2] = -xyz[:, 2]
+    return out
+
+
+def _flip_yz_quat(rot_xyzw: np.ndarray) -> np.ndarray:
+    """Same diag(1, -1, -1) world transform applied to per-Gaussian rotation.
+
+    Pre-multiply by q_M = (x=1, y=0, z=0, w=0) (= 180° around X-axis):
+      q_new (xyzw) = (w_old, -z_old, y_old, -x_old)
+    """
+    x, y, z, w = rot_xyzw[:, 0], rot_xyzw[:, 1], rot_xyzw[:, 2], rot_xyzw[:, 3]
+    return np.stack([w, -z, y, -x], axis=-1)
+
+
+def _transform_camera_pose(c2w: np.ndarray) -> np.ndarray:
+    """Apply the same world flip to camera-to-world extrinsics.
+
+    M @ c2w, with M = diag(1, -1, -1, 1).
+    """
+    M = np.diag([1.0, -1.0, -1.0, 1.0]).astype(c2w.dtype)
+    return M @ c2w
+
+
 def _log_scale(s: np.ndarray, eps: float = 1e-8) -> np.ndarray:
     """3DGS .ply stores log-scale (linear scale is exp() of stored value)."""
     return np.log(np.clip(s, eps, None))
@@ -182,6 +212,9 @@ def main():
                     help="prune Gaussians below this opacity before writing .ply")
     ap.add_argument("--render-preview", action="store_true",
                     help="also render view-0 via the CPU rasterizer and save as PNG")
+    ap.add_argument("--no-axis-flip", action="store_true",
+                    help="keep raw OpenCV (+Y down, +Z fwd) — by default we flip "
+                         "to OpenGL/SuperSplat (+Y up, -Z fwd)")
     args = ap.parse_args()
 
     if not args.video.exists():
@@ -234,11 +267,44 @@ def main():
     sh = np.asarray(g.harmonics).reshape(-1, 3)
 
     print(f"[infer-video] {means.shape[0]:,} raw Gaussians, opacity range [{ops.min():.3f}, {ops.max():.3f}]")
-    # Prune low-opacity points so the .ply is leaner.
     keep = ops > args.opacity_threshold
     print(f"   keeping {keep.sum():,} after opacity > {args.opacity_threshold}")
 
-    write_ply_3dgs(args.out, means[keep], scales[keep], rots[keep], ops[keep], sh[keep])
+    xyz_w = means[keep]
+    rot_w = rots[keep]
+    cam_poses = np.asarray(out["camera_poses"])[0]  # (V, 4, 4) c2w
+
+    if not args.no_axis_flip:
+        print(f"[infer-video] axis-flip OpenCV → OpenGL/SuperSplat (+Y up, −Z fwd)")
+        xyz_w = _flip_yz_xyz(xyz_w)
+        rot_w = _flip_yz_quat(rot_w)
+        cam_poses = np.stack([_transform_camera_pose(p) for p in cam_poses], axis=0)
+
+    write_ply_3dgs(args.out, xyz_w, scales[keep], rot_w, ops[keep], sh[keep])
+
+    # Sidecar JSON: per-view camera + the predicted intrinsics so a future
+    # web viewer can spawn its initial camera at view-0 (= GT photo angle).
+    import json
+    sidecar = args.out.with_suffix(".cameras.json")
+    intr_pred = np.asarray(out["intrinsic_pred"])[0]   # (V, 2)
+    cams = []
+    for v in range(cam_poses.shape[0]):
+        cams.append({
+            "view": int(v),
+            "c2w": cam_poses[v].tolist(),
+            "intrinsics_normalised": {
+                "fx": float(intr_pred[v, 0]), "fy": float(intr_pred[v, 1]),
+                "cx": 0.5, "cy": 0.5,
+            },
+        })
+    with open(sidecar, "w") as f:
+        json.dump({
+            "axis_convention": "openCV" if args.no_axis_flip else "openGL_Yup",
+            "image_size": [224, 224],
+            "cameras": cams,
+            "initial_view": 0,
+        }, f, indent=2)
+    print(f"[infer-video] camera sidecar → {sidecar}")
 
     if args.render_preview:
         render_preview(out, args, frames)
