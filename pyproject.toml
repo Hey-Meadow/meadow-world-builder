@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meadow-world-builder"
-version = "0.0.2"
-description = "Meadow - World Builder: single-image 3D Gaussian Splatting on Apple Silicon (MLX)"
+version = "0.0.3"
+description = "Meadow World Builder + Space Builder: single-image objects (meadow_wb) and multi-image scene 3DGS (meadow_sb) on Apple Silicon (MLX)."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Sheng-Kai Huang" }]
 dependencies = [
-    "mlx>=0.21.0",
+    "mlx>=0.31.0",
     "numpy>=1.26",
     "Pillow>=10.2",
     "opencv-python>=4.9",
@@ -22,7 +22,14 @@ dependencies = [
     "plyfile>=1.0",
     "torch>=2.1",
     "huggingface_hub>=0.20",
+    # meadow_sb additions
+    "imageio>=2.34",          # parallax GIF assembly
+    "gsplat>=1.5.0",          # tier-1 CPU rasterizer
 ]
 
+[project.optional-dependencies]
+spz = ["spz>=0.0.1"]          # Niantic SPZ writer (import workaround in scripts/ply_to_spz.py)
+test = ["pytest>=8.0"]
+
 [tool.setuptools.packages.find]
-include = ["meadow_wb*"]
+include = ["meadow_wb*", "meadow_sb*"]

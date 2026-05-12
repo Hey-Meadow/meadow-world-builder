@@ -40,15 +40,31 @@ Almost-fixed camera → small baseline → harder for stereo. Floor + DONIC bann
 
 | | YoNoSplat (A100 fp16) | **meadow_sb (M1 Max fp32)** |
 |---|---:|---:|
-| 2-view forward | ~0.2 s | **0.7 s** (3.5× of A100) |
-| 8-view forward | ~1 s | **4.2 s** |
-| 32-view forward | ~5 s | **17 s** |
+| 2-view forward | ~0.2 s | **0.72 s** (3.6× of A100) |
+| 8-view forward | ~1 s | **4.74 s** |
+| 32-view forward | ~5 s | **16.6 s** |
 | Hardware | $10k+ data-centre GPU | laptop SoC |
 | vs traditional COLMAP + 3DGS train | 30 min – 2 hr | **same scene in ≤ 20 s** (≈ 200–1000× faster) |
 
 Single-pass feed-forward — no per-scene optimisation, no COLMAP, no CUDA.
 
 ---
+
+## Install
+
+```bash
+git clone https://github.com/Hey-Meadow/meadow-world-builder.git
+cd meadow-world-builder
+pip install -e .                 # base deps (mlx, torch, opencv, gsplat, imageio, …)
+pip install -e ".[spz,test]"     # optional: SPZ writer + pytest
+```
+
+Requires Python 3.11–3.12 on Apple Silicon (M1 / M2 / M3 / M4 / M5 series).
+
+Weights (3.86 GB checkpoint) download manually from the upstream YoNoSplat release and place at:
+```
+research/yonosplat_bootstrap/weights/yonosplat/re10k_224x224_ctx2to32.ckpt
+```
 
 ## Quick start
 
@@ -100,17 +116,17 @@ Total: **965 M parameters**, **1222 state-dict tensors**, ships as `re10k_224x22
 
 ## Results — performance & scaling
 
-End-to-end on **M1 Max, fp32, 224×224**:
+End-to-end on **M1 Max, fp32, 224×224**, median of 3 warm runs:
 
-| N frames | forward | total inc. .ply write | Gaussians (post-prune) | .ply | .spz |
-|---:|---:|---:|---:|---:|---:|
-| 2  | 0.7 s | 1.0 s | 100 k | 5 MB | ~1 MB |
-| 4  | 2.4 s | 3.0 s | 200 k | 9 MB | ~1.5 MB |
-| 8  | 4.2 s | 5.5 s | 400 k | 17 MB | 3.4 MB |
-| 16 | 9.3 s | 11 s | 800 k | 29 MB | 5–6 MB |
-| 32 | 17 s | 20 s | 1.6 M | 49 MB | 8–10 MB |
+| N frames | forward | Gaussians (post-prune) | .ply | .spz |
+|---:|---:|---:|---:|---:|
+| 2  | 0.72 s | 100 k | 5 MB | ~1 MB |
+| 4  | 1.67 s | 200 k | 9 MB | ~1.5 MB |
+| 8  | 4.74 s | 400 k | 17 MB | 3.4 MB |
+| 16 | 8.58 s | 800 k | 29 MB | 5–6 MB |
+| 32 | 16.62 s | 1.6 M | 49 MB | 8–10 MB |
 
-Scaling is linear in N. M1 Max 32 GB unified memory holds the full 32-view forward without paging.
+Scaling is linear in N. M1 Max 32 GB unified memory holds the full 32-view forward without paging. End-to-end CLI adds ~0.5 s of video decoding + ~1 s of .ply writing per call.
 
 Sanity values (in-distribution nursery scene):
 - camera-0 ≈ identity (4×4 c2w, view-1-centric coordinate system) ✓
@@ -166,7 +182,7 @@ meadow_sb/
 │   ├── ply_to_spz.py            .ply → .spz Niantic-compressed (5–10× smaller)
 │   ├── convert_weights.py       PT state-dict → MLX npz batches (offline)
 │   └── e2e_test.py              Module discovery / smoke tests
-├── tests/                       62 passing pytest cases (per-block numerical parity)
+├── tests/                       57 standalone + 5 upstream-cross-check pytest cases (per-block numerical parity)
 ├── utils/                       Shared MLX helpers (attention, weight loader, asserts)
 ├── weights/                     Symlink target for ckpt/npz (gitignored)
 ├── BENCHMARK_YONOSPLAT.md       Full timing methodology + per-stage breakdown
