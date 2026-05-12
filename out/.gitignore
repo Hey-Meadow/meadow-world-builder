@@ -1,2 +1,4 @@
 *.ply
 *.png
+!viewer/
+!viewer/*

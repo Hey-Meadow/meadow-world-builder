@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <title>YoNoSplat MLX viewer</title>
+  <style>
+    body { margin: 0; background: #000; color: #fff; font-family: -apple-system, sans-serif; overflow: hidden; }
+    #info {
+      position: fixed; top: 8px; left: 8px; z-index: 10;
+      background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 6px;
+      font-size: 12px; line-height: 1.5; max-width: 300px;
+    }
+    #info b { color: #6cf; }
+    .row { display: flex; gap: 6px; margin-top: 4px; }
+    button {
+      background: #1a4; color: #fff; border: none; padding: 4px 8px; border-radius: 4px;
+      font-size: 11px; cursor: pointer;
+    }
+    button:hover { background: #2c6; }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <div><b>YoNoSplat MLX viewer</b></div>
+    <div id="status">loading…</div>
+    <div class="row" id="cam-buttons"></div>
+    <div style="margin-top:6px; opacity:0.7;">滑鼠拖拉 = 環繞 · 滾輪 = 縮放</div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "@mkkellogg/gaussian-splats-3d": "https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+    const params = new URLSearchParams(location.search);
+    const plyPath = params.get('ply');
+    if (!plyPath) {
+      document.getElementById('status').textContent = '請在 URL 加 ?ply=path/to/scene.ply';
+      throw new Error('missing ?ply= parameter');
+    }
+    const camsPath = params.get('cameras') || plyPath.replace(/\.ply$/, '.cameras.json');
+
+    document.getElementById('status').textContent = '讀取 cameras.json …';
+    let camsData = null;
+    try {
+      camsData = await fetch(camsPath).then(r => r.ok ? r.json() : null);
+    } catch (e) { /* optional */ }
+
+    // OpenCV camera frame:
+    //   +X right, +Y down (image), +Z forward (into scene).
+    // For three.js we need: position, lookAt, up.
+    //   forward (toward scene)  = c2w * (0, 0, 1) = c2w[:, 2]
+    //   up (top of image)       = c2w * (0, -1, 0) = -c2w[:, 1]
+    function poseToThree(c2w) {
+      const eye = new THREE.Vector3(c2w[0][3], c2w[1][3], c2w[2][3]);
+      const fwd = new THREE.Vector3(c2w[0][2], c2w[1][2], c2w[2][2]).normalize();
+      const up  = new THREE.Vector3(-c2w[0][1], -c2w[1][1], -c2w[2][1]).normalize();
+      const target = eye.clone().add(fwd);
+      return { eye, target, up };
+    }
+
+    // Choose camera-up axis for the orbit controls.
+    // Our .ply uses --orient zup (COLMAP) by default → world +Z is up.
+    const worldUp = (camsData && camsData.axis_convention === 'yup')
+      ? [0, 1, 0] : [0, 0, 1];
+
+    let initial = { eye: new THREE.Vector3(0, 0, 0),
+                    target: new THREE.Vector3(0, 0, -1),
+                    up: new THREE.Vector3(0, 1, 0) };
+    if (camsData && camsData.cameras && camsData.cameras.length) {
+      const i = camsData.initial_view || 0;
+      initial = poseToThree(camsData.cameras[i].c2w);
+    }
+
+    document.getElementById('status').textContent = '讀取 .ply Gaussian …';
+    const viewer = new GaussianSplats3D.Viewer({
+      cameraUp: worldUp,
+      initialCameraPosition: initial.eye.toArray(),
+      initialCameraLookAt:   initial.target.toArray(),
+      sharedMemoryForWorkers: false,   // file:// + http://localhost are fine
+      sphericalHarmonicsDegree: 0,
+    });
+
+    await viewer.addSplatScene(plyPath, { showLoadingUI: false });
+    viewer.start();
+    document.getElementById('status').textContent = `${plyPath.split('/').pop()} 載入完畢 — 初始視角 = view-${camsData ? (camsData.initial_view || 0) : '?'}`;
+
+    // Buttons to jump between captured views.
+    if (camsData && camsData.cameras) {
+      const container = document.getElementById('cam-buttons');
+      camsData.cameras.forEach((cam, idx) => {
+        const b = document.createElement('button');
+        b.textContent = `view ${idx}`;
+        b.onclick = () => {
+          const p = poseToThree(cam.c2w);
+          const c = viewer.camera;
+          c.position.copy(p.eye);
+          c.up.copy(p.up);
+          c.lookAt(p.target);
+          if (viewer.controls) {
+            viewer.controls.target.copy(p.target);
+            viewer.controls.update();
+          }
+        };
+        container.appendChild(b);
+      });
+    }
+  </script>
+</body>
+</html>
