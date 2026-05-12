@@ -393,6 +393,7 @@ class CroCoDecoder(nn.Module):
 
         pos = build_decoder_positions(B, N, h, w, self.num_register_tokens)
 
+        penult = None  # output of block (depth - 2)
         for i, blk in enumerate(self.blocks):
             if i % 2 == 0:
                 hidden = hidden.reshape(B * N, hw, self.dim)
@@ -401,11 +402,18 @@ class CroCoDecoder(nn.Module):
                 hidden = hidden.reshape(B, N * hw, self.dim)
                 pos_blk = pos.reshape(B, N * hw, 2)
             hidden = blk(hidden, xpos=pos_blk)
+            if i == self.depth - 2:
+                penult = hidden.reshape(B * N, hw, self.dim)
 
-        # Final reshape back to (B*N, hw, dim) for downstream sub-decoders.
+        # Upstream concats outputs of the last two blocks along the channel
+        # axis (backbone_local_global.decode line ~184) so sub-decoders see
+        # 2*dim=2048 — required for in_dim=2048 contract.
         hidden = hidden.reshape(B * N, hw, self.dim)
         pos = pos.reshape(B * N, hw, 2)
-        return hidden, pos
+        if penult is None:
+            penult = hidden
+        out = mx.concatenate([penult, hidden], axis=-1)
+        return out, pos
 
 
 # ---------------------------------------------------------------------------

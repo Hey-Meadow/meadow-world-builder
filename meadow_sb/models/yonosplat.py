@@ -285,20 +285,13 @@ class YoNoSplatEncoder:
         # parity but lets the forward run end-to-end.
         hidden = patch_tokens
 
-        # ---- 4. CroCo decoder ----
-        dec_hidden, dec_pos = self.decoder(hidden, B, V, H, W, ps)      # (BV, 5+h*w, 1024)
+        # ---- 4. CroCo decoder (returns 2048-dim via last-2-block concat) ----
+        dec_hidden, dec_pos = self.decoder(hidden, B, V, H, W, ps)      # (BV, 5+h*w, 2048)
         psi = cfg.num_register_tokens_dec   # patch_start_idx = 5
 
-        # STUB 2: Upstream concats the last-two decoder block outputs (dim
-        # doubles to 2048). Agent B's port returns only the final block. As a
-        # placeholder we tile dim → 2*dim so the downstream sub-decoders
-        # (in_dim=2048) accept the shape. Numerical parity requires patching
-        # the decoder to capture both layers.
-        dec_hidden2x = mx.concatenate([dec_hidden, dec_hidden], axis=-1)  # (BV, 5+h*w, 2048)
-
         # ---- 5. Upsample 2× the patch portion of the decoder output ----
-        aux = dec_hidden2x[:, :psi, :]                                   # (BV, 5, 2048)
-        patch = dec_hidden2x[:, psi:, :]                                 # (BV, h*w, 2048)
+        aux = dec_hidden[:, :psi, :]                                     # (BV, 5, 2048)
+        patch = dec_hidden[:, psi:, :]                                   # (BV, h*w, 2048)
         patch_up = _bilinear_2x(patch, h, w)                             # (BV, 2h*2w, 2048)
         hidden_upsampled = mx.concatenate([aux, patch_up], axis=1)       # (BV, 5+4hw, 2048)
 
@@ -325,7 +318,7 @@ class YoNoSplatEncoder:
         # ---- 7. Three sub-decoders ----
         point_hidden = self.point_decoder(hidden_upsampled, xpos=pos_upsampled)    # (BV, 5+4hw, 1024)
         gaussian_hidden = self.gaussian_decoder(hidden_gaussian, xpos=pos_upsampled)
-        camera_hidden = self.camera_decoder(dec_hidden2x, xpos=dec_pos)            # (BV, 5+h*w, 512)
+        camera_hidden = self.camera_decoder(dec_hidden, xpos=dec_pos)              # (BV, 5+h*w, 512)
 
         # ---- 8. Heads + pixel_shuffle ----
         out_h, out_w = h * cfg.gaussians_per_axis, w * cfg.gaussians_per_axis
