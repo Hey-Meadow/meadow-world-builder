@@ -177,34 +177,69 @@ def _quat_xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
     return q[..., [3, 0, 1, 2]]
 
 
-def _flip_yz_xyz(xyz: np.ndarray) -> np.ndarray:
-    """OpenCV (+Y down, +Z forward) → OpenGL/SuperSplat (+Y up, -Z forward).
-
-    Composed as a 180° rotation around the X axis: diag(1, -1, -1).
-    """
-    out = xyz.copy()
-    out[:, 1] = -xyz[:, 1]
-    out[:, 2] = -xyz[:, 2]
-    return out
-
-
-def _flip_yz_quat(rot_xyzw: np.ndarray) -> np.ndarray:
-    """Same diag(1, -1, -1) world transform applied to per-Gaussian rotation.
-
-    Pre-multiply by q_M = (x=1, y=0, z=0, w=0) (= 180° around X-axis):
-      q_new (xyzw) = (w_old, -z_old, y_old, -x_old)
-    """
-    x, y, z, w = rot_xyzw[:, 0], rot_xyzw[:, 1], rot_xyzw[:, 2], rot_xyzw[:, 3]
-    return np.stack([w, -z, y, -x], axis=-1)
+ORIENT_PRESETS = {
+    # Raw model output (OpenCV: +X right, +Y down, +Z forward into scene).
+    "opencv": np.eye(3, dtype=np.float32),
+    # +Y up (OpenGL/PlayCanvas default). 180° around X.
+    "yup": np.diag([1.0, -1.0, -1.0]).astype(np.float32),
+    # +Z up (COLMAP / INRIA-3DGS convention). -90° around X.
+    "zup": np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]], dtype=np.float32),
+}
 
 
-def _transform_camera_pose(c2w: np.ndarray) -> np.ndarray:
-    """Apply the same world flip to camera-to-world extrinsics.
+def _matrix_to_quat_xyzw(R: np.ndarray) -> np.ndarray:
+    t = np.trace(R)
+    if t > 0:
+        s = np.sqrt(t + 1.0) * 2.0
+        w = 0.25 * s
+        x = (R[2, 1] - R[1, 2]) / s
+        y = (R[0, 2] - R[2, 0]) / s
+        z = (R[1, 0] - R[0, 1]) / s
+    elif R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
+        s = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2.0
+        w = (R[2, 1] - R[1, 2]) / s
+        x = 0.25 * s
+        y = (R[0, 1] + R[1, 0]) / s
+        z = (R[0, 2] + R[2, 0]) / s
+    elif R[1, 1] > R[2, 2]:
+        s = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2.0
+        w = (R[0, 2] - R[2, 0]) / s
+        x = (R[0, 1] + R[1, 0]) / s
+        y = 0.25 * s
+        z = (R[1, 2] + R[2, 1]) / s
+    else:
+        s = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2.0
+        w = (R[1, 0] - R[0, 1]) / s
+        x = (R[0, 2] + R[2, 0]) / s
+        y = (R[1, 2] + R[2, 1]) / s
+        z = 0.25 * s
+    return np.array([x, y, z, w], dtype=R.dtype)
 
-    M @ c2w, with M = diag(1, -1, -1, 1).
-    """
-    M = np.diag([1.0, -1.0, -1.0, 1.0]).astype(c2w.dtype)
-    return M @ c2w
+
+def _quat_mul_xyzw(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
+    x1, y1, z1, w1 = q1[..., 0], q1[..., 1], q1[..., 2], q1[..., 3]
+    x2, y2, z2, w2 = q2[..., 0], q2[..., 1], q2[..., 2], q2[..., 3]
+    return np.stack([
+        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+    ], axis=-1)
+
+
+def _apply_world_rotation(R: np.ndarray, xyz: np.ndarray, rot_xyzw: np.ndarray,
+                          c2w: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Rotate world by R: apply to means, quaternions, and camera-to-world poses."""
+    xyz_new = xyz @ R.T  # (R @ xyz.T).T
+
+    q_R = _matrix_to_quat_xyzw(R)
+    q_R = np.broadcast_to(q_R, rot_xyzw.shape).copy()
+    rot_new = _quat_mul_xyzw(q_R, rot_xyzw)
+
+    R4 = np.eye(4, dtype=c2w.dtype)
+    R4[:3, :3] = R
+    c2w_new = R4 @ c2w
+    return xyz_new, rot_new, c2w_new
 
 
 def _log_scale(s: np.ndarray, eps: float = 1e-8) -> np.ndarray:
@@ -292,8 +327,12 @@ def main():
     ap.add_argument("--render-preview", action="store_true",
                     help="also render view-0 via the CPU rasterizer and save as PNG")
     ap.add_argument("--no-axis-flip", action="store_true",
-                    help="keep raw OpenCV (+Y down, +Z fwd) — by default we flip "
-                         "to OpenGL/SuperSplat (+Y up, -Z fwd)")
+                    help="(deprecated alias for --orient opencv)")
+    ap.add_argument("--orient", choices=list(ORIENT_PRESETS.keys()), default="zup",
+                    help="world-up convention written into the .ply. "
+                         "opencv = raw model output (+Y down). "
+                         "yup = OpenGL/PlayCanvas (+Y up). "
+                         "zup = COLMAP/INRIA-3DGS (+Z up, SuperSplat default).")
     ap.add_argument("--scale-boost", type=float, default=5.0,
                     help="multiply per-Gaussian linear scale before writing .ply. "
                          "YoNoSplat outputs sub-cm Gaussians sized for its own "
@@ -361,11 +400,12 @@ def main():
     rot_w = rots[keep]
     cam_poses = np.asarray(out["camera_poses"])[0]  # (V, 4, 4) c2w
 
-    if not args.no_axis_flip:
-        print(f"[infer-video] axis-flip OpenCV → OpenGL/SuperSplat (+Y up, −Z fwd)")
-        xyz_w = _flip_yz_xyz(xyz_w)
-        rot_w = _flip_yz_quat(rot_w)
-        cam_poses = np.stack([_transform_camera_pose(p) for p in cam_poses], axis=0)
+    orient = "opencv" if args.no_axis_flip else args.orient
+    if orient != "opencv":
+        R = ORIENT_PRESETS[orient]
+        print(f"[infer-video] world rotation: --orient {orient}")
+        xyz_w, rot_w, cam_poses_new = _apply_world_rotation(R, xyz_w, rot_w, cam_poses)
+        cam_poses = cam_poses_new
 
     final_scales = scales[keep]
     if args.scale_boost != 1.0:
@@ -397,7 +437,7 @@ def main():
         })
     with open(sidecar, "w") as f:
         json.dump({
-            "axis_convention": "openCV" if args.no_axis_flip else "openGL_Yup",
+            "axis_convention": orient,
             "image_size": [224, 224],
             "cameras": cams,
             "initial_view": 0,
