@@ -1,0 +1,7 @@
+weights/
+*.npz
+*.pth
+*.pt
+test_outputs/
+__pycache__/
+.pytest_cache/

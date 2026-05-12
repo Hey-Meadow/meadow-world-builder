@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "propainter-mlx"
+version = "0.1.0"
+description = "ProPainter (Zhou et al. 2023) video-inpainting MLX port for Apple Silicon."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Sheng-Kai Huang" }]
+dependencies = [
+    "mlx>=0.31",
+    "numpy>=1.26",
+    "imageio>=2.34",
+    "torch>=2.1",
+    "torchvision>=0.16",
+]
+
+[tool.setuptools.packages.find]
+include = ["propainter_mlx*"]
