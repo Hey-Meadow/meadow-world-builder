@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lama-mlx"
+version = "0.1.0"
+description = "LaMa image-inpainting generator ported to MLX (Apple Silicon)."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Sheng-Kai Huang" }]
+dependencies = [
+    "mlx>=0.31",
+    "numpy>=1.24",
+    "pillow>=10.0",
+    "opencv-python>=4.8",
+    # torch is only needed by scripts/convert_weights.py for one-time ckpt conversion;
+    # MLX inference itself does not require torch.
+    "torch>=2.1",
+]
+
+[project.scripts]
+lama-mlx-inpaint = "lama_mlx.cli:main"
+
+[tool.setuptools]
+packages = ["lama_mlx"]
