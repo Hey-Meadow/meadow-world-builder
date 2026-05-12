@@ -40,37 +40,37 @@ CKPT = Path(__file__).resolve().parents[2] / "research" / "yonosplat_bootstrap" 
 # Video frame sampling
 # --------------------------------------------------------------------------- #
 
-def sample_two_frames(video_path: Path, size: int = 224, frame_a: float = 0.0,
-                      frame_b: float = 0.5) -> np.ndarray:
-    """Read two frames at relative positions `frame_a`, `frame_b` of the clip.
+def sample_n_frames(video_path: Path, n: int, size: int = 224) -> np.ndarray:
+    """Read `n` frames uniformly spaced across the clip.
 
     Returns:
-        np.ndarray of shape (2, 3, size, size), float32 in [0, 1].
+        np.ndarray of shape (n, 3, size, size), float32 in [0, 1].
     """
+    if n < 2:
+        raise ValueError(f"need at least 2 frames, got n={n}")
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise FileNotFoundError(f"cv2 could not open {video_path}")
     n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
     if n_frames <= 1:
-        # Fallback for streams without frame count: scan
-        frames = []
+        # Streamy file: scan everything once and pick.
+        frames_all = []
         while True:
             ok, fr = cap.read()
             if not ok:
                 break
-            frames.append(fr)
+            frames_all.append(fr)
         cap.release()
-        n_frames = len(frames)
-        if n_frames < 2:
-            raise ValueError(f"video has only {n_frames} frame(s)")
-        idx_a = int(round(frame_a * (n_frames - 1)))
-        idx_b = int(round(frame_b * (n_frames - 1)))
-        chosen = [frames[idx_a], frames[idx_b]]
+        n_frames = len(frames_all)
+        if n_frames < n:
+            raise ValueError(f"video has {n_frames} frame(s), need {n}")
+        idxs = [int(round(t * (n_frames - 1))) for t in np.linspace(0, 1, n)]
+        chosen = [frames_all[i] for i in idxs]
     else:
-        idx_a = int(round(frame_a * (n_frames - 1)))
-        idx_b = int(round(frame_b * (n_frames - 1)))
+        idxs = [int(round(t * (n_frames - 1))) for t in np.linspace(0, 1, n)]
         chosen = []
-        for idx in (idx_a, idx_b):
+        for idx in idxs:
             cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
             ok, fr = cap.read()
             if not ok:
@@ -78,9 +78,8 @@ def sample_two_frames(video_path: Path, size: int = 224, frame_a: float = 0.0,
             chosen.append(fr)
         cap.release()
 
-    out = np.zeros((2, 3, size, size), dtype=np.float32)
+    out = np.zeros((n, 3, size, size), dtype=np.float32)
     for i, fr in enumerate(chosen):
-        # cv2 reads BGR. Center-crop to square then resize.
         h, w = fr.shape[:2]
         s = min(h, w)
         y0 = (h - s) // 2
@@ -89,8 +88,14 @@ def sample_two_frames(video_path: Path, size: int = 224, frame_a: float = 0.0,
         fr = cv2.resize(fr, (size, size), interpolation=cv2.INTER_AREA)
         fr_rgb = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
         out[i] = fr_rgb.astype(np.float32).transpose(2, 0, 1) / 255.0
-    print(f"[infer-video] sampled frames {idx_a} and {idx_b} / {n_frames}")
+    print(f"[infer-video] sampled {n} frames from indices {idxs} / {n_frames}")
     return out
+
+
+# Back-compat alias for any older caller.
+def sample_two_frames(video_path: Path, size: int = 224, frame_a: float = 0.0,
+                      frame_b: float = 0.5) -> np.ndarray:
+    return sample_n_frames(video_path, 2, size=size)
 
 
 # --------------------------------------------------------------------------- #
@@ -206,8 +211,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--video", type=Path, required=True)
     ap.add_argument("--out", type=Path, default=Path("scene.ply"))
-    ap.add_argument("--frame-a", type=float, default=0.0, help="first sample point, in [0, 1]")
-    ap.add_argument("--frame-b", type=float, default=0.5, help="second sample point, in [0, 1]")
+    ap.add_argument("--n-frames", type=int, default=2,
+                    help="number of frames to sample uniformly from the video "
+                         "(YoNoSplat re10k ckpt trained for 2-32)")
+    ap.add_argument("--frame-a", type=float, default=0.0, help="(deprecated, kept for back-compat)")
+    ap.add_argument("--frame-b", type=float, default=0.5, help="(deprecated, kept for back-compat)")
     ap.add_argument("--opacity-threshold", type=float, default=0.005,
                     help="prune Gaussians below this opacity before writing .ply")
     ap.add_argument("--render-preview", action="store_true",
@@ -230,21 +238,17 @@ def main():
     model = YoNoSplatEncoder(YoNoSplatEncoderCfg(), state_dict=sd)
     print(f"   model built ({time.time()-t0:.1f}s)")
 
-    print(f"[infer-video] sampling 2 frames from {args.video} …")
-    frames = sample_two_frames(args.video, size=224,
-                               frame_a=args.frame_a, frame_b=args.frame_b)
-    images = frames[None, ...]                                  # (1, 2, 3, 224, 224)
+    V = args.n_frames
+    print(f"[infer-video] sampling {V} frames from {args.video} …")
+    frames = sample_n_frames(args.video, V, size=224)
+    images = frames[None, ...]                                  # (1, V, 3, 224, 224)
     images_mx = mx.array(images)
-    # Normalised intrinsics with principal point at image centre and an
-    # initial focal-length guess of 1.0× image width (≈ 60° FOV). YoNoSplat
-    # predicts its own focal in `intrinsic_pred`; this is only the *initial*
-    # condition fed into the intrinsics_embed path.
     K_norm = np.array(
         [[1.0, 0.0, 0.5],
          [0.0, 1.0, 0.5],
          [0.0, 0.0, 1.0]], dtype=np.float32
     )
-    intr_mx = mx.broadcast_to(mx.array(K_norm).reshape(1, 1, 3, 3), (1, 2, 3, 3))
+    intr_mx = mx.broadcast_to(mx.array(K_norm).reshape(1, 1, 3, 3), (1, V, 3, 3))
 
     print(f"[infer-video] running MLX forward …")
     t0 = time.time()
