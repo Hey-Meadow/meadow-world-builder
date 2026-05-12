@@ -53,8 +53,31 @@ def sample_n_frames(video_path: Path, n: int, size: int = 224) -> np.ndarray:
         raise FileNotFoundError(f"cv2 could not open {video_path}")
     n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    if n_frames <= 1:
-        # Streamy file: scan everything once and pick.
+    # Try seek-based fast path first; for many screen recordings the
+    # container reports an inflated nb_frames vs what the decoder can
+    # actually deliver, so fall back to a full sequential scan if seek
+    # fails. Scanning is the safe path (variable-FPS aware).
+    used_scan = False
+    if n_frames > 1:
+        idxs = [int(round(t * (n_frames - 1))) for t in np.linspace(0, 1, n)]
+        chosen = []
+        ok_all = True
+        for idx in idxs:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ok, fr = cap.read()
+            if not ok:
+                ok_all = False
+                break
+            chosen.append(fr)
+        if not ok_all:
+            chosen = []
+            cap.release()
+            cap = cv2.VideoCapture(str(video_path))
+            used_scan = True
+    else:
+        used_scan = True
+
+    if used_scan:
         frames_all = []
         while True:
             ok, fr = cap.read()
@@ -62,20 +85,13 @@ def sample_n_frames(video_path: Path, n: int, size: int = 224) -> np.ndarray:
                 break
             frames_all.append(fr)
         cap.release()
-        n_frames = len(frames_all)
-        if n_frames < n:
-            raise ValueError(f"video has {n_frames} frame(s), need {n}")
-        idxs = [int(round(t * (n_frames - 1))) for t in np.linspace(0, 1, n)]
+        n_actual = len(frames_all)
+        if n_actual < n:
+            raise ValueError(f"video has {n_actual} frame(s), need {n}")
+        idxs = [int(round(t * (n_actual - 1))) for t in np.linspace(0, 1, n)]
         chosen = [frames_all[i] for i in idxs]
+        n_frames = n_actual
     else:
-        idxs = [int(round(t * (n_frames - 1))) for t in np.linspace(0, 1, n)]
-        chosen = []
-        for idx in idxs:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            ok, fr = cap.read()
-            if not ok:
-                raise RuntimeError(f"could not read frame {idx}")
-            chosen.append(fr)
         cap.release()
 
     out = np.zeros((n, 3, size, size), dtype=np.float32)
