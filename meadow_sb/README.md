@@ -6,6 +6,36 @@ Sibling of `meadow_wb` (single-image object 3D). `meadow_sb` does the multi-imag
 
 ---
 
+## Results — visual
+
+Source frame (GT) → static 3DGS render → parallax orbit (±4° around view-0, 12 fps):
+
+### In-distribution: nursery (RealEstate10K training domain)
+
+| GT view-0 | static render | parallax (3D depth) |
+|---|---|---|
+| ![](media/nursery_gt.png) | ![](media/nursery_render.png) | ![](media/nursery_parallax.gif) |
+
+Near-photographic recovery: wall hanging, hanging mobile, plant on stool, wicker chair with teddy, octopus print all reconstructed. Parallax shows real 3D depth — foreground stool moves more than back wall.
+
+### Out-of-distribution: rainy urban street at night (walk-around hand-held)
+
+| GT view-0 | static render | parallax (3D depth) |
+|---|---|---|
+| ![](media/urban_gt.png) | ![](media/urban_render.png) | ![](media/urban_parallax.gif) |
+
+Despite being far from the training distribution (outdoor + night + rain + people), the model recovers storefronts, signage, pavement reflections, and pedestrians with umbrellas. The parallax confirms a real depth-ordered scene, not a flat painted texture.
+
+### Static camera: table-tennis arena (low parallax baseline)
+
+| GT view-0 | static render | parallax (3D depth) |
+|---|---|---|
+| ![](media/overlay_gt.png) | ![](media/overlay_render.png) | ![](media/overlay_parallax.gif) |
+
+Almost-fixed camera → small baseline → harder for stereo. Floor + DONIC banners + player silhouette still hold; the player's body has motion ghosting (rigid-scene assumption violated).
+
+---
+
 ## TL;DR
 
 | | YoNoSplat (A100 fp16) | **meadow_sb (M1 Max fp32)** |
