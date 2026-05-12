@@ -40,6 +40,60 @@ CKPT = Path(__file__).resolve().parents[2] / "research" / "yonosplat_bootstrap" 
 # Video frame sampling
 # --------------------------------------------------------------------------- #
 
+def estimate_camera_motion(video_path: Path, n_probe: int = 10) -> tuple[float, dict]:
+    """Coarse Farneback optical-flow magnitude across the clip.
+
+    Returns the median |flow| in pixels (downsampled to 64×64 grayscale),
+    plus a stats dict for logging.
+    """
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        raise FileNotFoundError(f"cv2 could not open {video_path}")
+    frames = []
+    while True:
+        ok, fr = cap.read()
+        if not ok:
+            break
+        frames.append(fr)
+    cap.release()
+    if len(frames) < 2:
+        return 0.0, {"n_frames": len(frames), "median_flow_px": 0.0}
+    idxs = np.linspace(0, len(frames) - 1, min(n_probe, len(frames))).astype(int)
+    grays = []
+    for i in idxs:
+        g = cv2.cvtColor(frames[i], cv2.COLOR_BGR2GRAY)
+        g = cv2.resize(g, (64, 64), interpolation=cv2.INTER_AREA)
+        grays.append(g)
+    mags = []
+    for a, b in zip(grays[:-1], grays[1:]):
+        flow = cv2.calcOpticalFlowFarneback(a, b, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+        mag = np.sqrt(flow[..., 0] ** 2 + flow[..., 1] ** 2)
+        mags.append(float(np.median(mag)))
+    median_mag = float(np.median(mags))
+    return median_mag, {
+        "n_frames_total": len(frames),
+        "probed_pairs": len(mags),
+        "per_pair_median_flow_px": mags,
+        "overall_median_flow_px": median_mag,
+    }
+
+
+def auto_choose_n_frames(median_flow_px: float) -> int:
+    """Map median optical-flow magnitude (64×64 grayscale, px) to context N.
+
+    Thresholds calibrated against the 4 walk-around test clips: still
+    table-tennis ≈ 0.05 px, urban hand-held walk ≈ 0.7-1.5 px, fast pan
+    ≈ 3-6 px. Capped at 16 to stay under the 9.3 s forward floor on M1.
+    """
+    if median_flow_px < 0.2:
+        return 4
+    if median_flow_px < 0.8:
+        return 8
+    if median_flow_px < 2.0:
+        return 12
+    return 16
+
+
 def sample_n_frames(video_path: Path, n: int, size: int = 224) -> np.ndarray:
     """Read `n` frames uniformly spaced across the clip.
 
@@ -227,9 +281,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--video", type=Path, required=True)
     ap.add_argument("--out", type=Path, default=Path("scene.ply"))
-    ap.add_argument("--n-frames", type=int, default=2,
-                    help="number of frames to sample uniformly from the video "
-                         "(YoNoSplat re10k ckpt trained for 2-32)")
+    ap.add_argument("--n-frames", type=int, default=0,
+                    help="number of frames to sample uniformly from the video. "
+                         "0 (default) = auto-pick from optical-flow motion estimate. "
+                         "YoNoSplat re10k ckpt trained for 2-32.")
     ap.add_argument("--frame-a", type=float, default=0.0, help="(deprecated, kept for back-compat)")
     ap.add_argument("--frame-b", type=float, default=0.5, help="(deprecated, kept for back-compat)")
     ap.add_argument("--opacity-threshold", type=float, default=0.005,
@@ -239,6 +294,12 @@ def main():
     ap.add_argument("--no-axis-flip", action="store_true",
                     help="keep raw OpenCV (+Y down, +Z fwd) — by default we flip "
                          "to OpenGL/SuperSplat (+Y up, -Z fwd)")
+    ap.add_argument("--scale-boost", type=float, default=5.0,
+                    help="multiply per-Gaussian linear scale before writing .ply. "
+                         "YoNoSplat outputs sub-cm Gaussians sized for its own "
+                         "rasterizer at near-baseline view; SuperSplat free-orbit "
+                         "view shows them as points without a boost. 5× is a "
+                         "tested default; 1.0 disables the boost.")
     args = ap.parse_args()
 
     if not args.video.exists():
@@ -254,7 +315,13 @@ def main():
     model = YoNoSplatEncoder(YoNoSplatEncoderCfg(), state_dict=sd)
     print(f"   model built ({time.time()-t0:.1f}s)")
 
-    V = args.n_frames
+    if args.n_frames <= 0:
+        print(f"[infer-video] auto-N: probing camera motion …")
+        flow_mag, stats = estimate_camera_motion(args.video)
+        V = auto_choose_n_frames(flow_mag)
+        print(f"   median flow {flow_mag:.3f} px (across {stats.get('probed_pairs', 0)} pairs) → N={V}")
+    else:
+        V = args.n_frames
     print(f"[infer-video] sampling {V} frames from {args.video} …")
     frames = sample_n_frames(args.video, V, size=224)
     images = frames[None, ...]                                  # (1, V, 3, 224, 224)
@@ -300,7 +367,18 @@ def main():
         rot_w = _flip_yz_quat(rot_w)
         cam_poses = np.stack([_transform_camera_pose(p) for p in cam_poses], axis=0)
 
-    write_ply_3dgs(args.out, xyz_w, scales[keep], rot_w, ops[keep], sh[keep])
+    final_scales = scales[keep]
+    if args.scale_boost != 1.0:
+        final_scales = final_scales * float(args.scale_boost)
+        print(f"[infer-video] scale-boost ×{args.scale_boost} (Gaussian sizes pre-mult)")
+    # Stats so the user can sanity-check vs scene size.
+    bb = xyz_w.max(0) - xyz_w.min(0)
+    scene_diag = float(np.linalg.norm(bb))
+    med = float(np.median(final_scales))
+    print(f"[infer-video] scene diag {scene_diag:.2f} m, median scale {med:.4f} m "
+          f"({med/scene_diag*100:.2f}% of diag; healthy 3DGS = 0.5–3%)")
+
+    write_ply_3dgs(args.out, xyz_w, final_scales, rot_w, ops[keep], sh[keep])
 
     # Sidecar JSON: per-view camera + the predicted intrinsics so a future
     # web viewer can spawn its initial camera at view-0 (= GT photo angle).
